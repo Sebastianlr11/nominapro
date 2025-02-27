@@ -24,7 +24,7 @@ import Layout from '../layouts/Layout.astro';
     </form>
   </div>
 
-  <!-- Lista de operaciones con paginación -->
+  <!-- Lista de operaciones con paginación y filtro -->
   <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-3xl mx-auto mt-8">
     <div class="flex justify-between items-center mb-6">
       <h2 class="text-2xl font-semibold text-gray-800">Lista de Operaciones</h2>
@@ -36,6 +36,11 @@ import Layout from '../layouts/Layout.astro';
           <option value="20">20 por página</option>
         </select>
       </div>
+    </div>
+
+    <!-- Filtro de búsqueda -->
+    <div class="mb-6">
+      <input type="text" id="filtroOperacion" class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500" placeholder="Buscar operación por nombre...">
     </div>
     
     <div id="listaOperaciones" class="space-y-4 min-h-64"></div>
@@ -87,6 +92,7 @@ import Layout from '../layouts/Layout.astro';
   <script>
     // Variables globales
     let operaciones = [];
+    let operacionesFiltradas = [];
     let editandoIndex = -1;
     let paginaActual = 1;
     let itemsPorPagina = 10;
@@ -107,6 +113,7 @@ import Layout from '../layouts/Layout.astro';
     const totalInfoOperacion = document.getElementById('totalInfoOperacion');
     const itemsPerPageOperacion = document.getElementById('itemsPerPageOperacion');
     const btnExportarExcel = document.getElementById('btnExportarExcel');
+    const filtroOperacion = document.getElementById('filtroOperacion');
     
     // Función para normalizar el nombre de la operación
     function normalizarNombreOperacion(nombre) {
@@ -144,12 +151,12 @@ import Layout from '../layouts/Layout.astro';
 
     // Función para actualizar los controles de paginación
     function actualizarPaginacionOperacion() {
-      const totalPaginas = Math.ceil(operaciones.length / itemsPorPagina);
+      const totalPaginas = Math.ceil(operacionesFiltradas.length / itemsPorPagina);
       
       const inicio = (paginaActual - 1) * itemsPorPagina + 1;
-      const fin = Math.min(paginaActual * itemsPorPagina, operaciones.length);
-      paginationInfoOperacion.textContent = `Mostrando ${operaciones.length > 0 ? inicio : 0}-${fin} de ${operaciones.length}`;
-      totalInfoOperacion.textContent = `Total: ${operaciones.length} operación${operaciones.length !== 1 ? 'es' : ''}`;
+      const fin = Math.min(paginaActual * itemsPorPagina, operacionesFiltradas.length);
+      paginationInfoOperacion.textContent = `Mostrando ${operacionesFiltradas.length > 0 ? inicio : 0}-${fin} de ${operacionesFiltradas.length}`;
+      totalInfoOperacion.textContent = `Total: ${operacionesFiltradas.length} operación${operacionesFiltradas.length !== 1 ? 'es' : ''}`;
       
       btnAnteriorOperacion.disabled = paginaActual <= 1;
       btnSiguienteOperacion.disabled = paginaActual >= totalPaginas;
@@ -211,21 +218,30 @@ import Layout from '../layouts/Layout.astro';
     function cargarOperaciones() {
       operaciones = JSON.parse(localStorage.getItem('operaciones')) || [];
       
+      // Ordenar alfabéticamente por nombreOperacion
+      operaciones.sort((a, b) => a.nombreOperacion.localeCompare(b.nombreOperacion));
+      
+      // Aplicar filtro si existe
+      const filtro = filtroOperacion.value.trim().toLowerCase();
+      operacionesFiltradas = filtro
+        ? operaciones.filter(op => op.nombreOperacion.toLowerCase().includes(filtro))
+        : [...operaciones];
+      
       actualizarPaginacionOperacion();
       
-      if (operaciones.length === 0) {
-        listaOperaciones.innerHTML = '<p class="text-center text-gray-500 py-4">No hay operaciones registradas</p>';
+      if (operacionesFiltradas.length === 0) {
+        listaOperaciones.innerHTML = '<p class="text-center text-gray-500 py-4">No hay operaciones registradas o coincidentes con el filtro</p>';
         return;
       }
       
       listaOperaciones.innerHTML = '';
       
       const inicio = (paginaActual - 1) * itemsPorPagina;
-      const fin = Math.min(inicio + itemsPorPagina, operaciones.length);
-      const operacionesPagina = operaciones.slice(inicio, fin);
+      const fin = Math.min(inicio + itemsPorPagina, operacionesFiltradas.length);
+      const operacionesPagina = operacionesFiltradas.slice(inicio, fin);
       
       operacionesPagina.forEach((op, i) => {
-        const index = inicio + i;
+        const index = operaciones.findIndex(o => o.nombreOperacion === op.nombreOperacion && o.valorOperacion === op.valorOperacion); // Índice en el array original
         const operacionItem = document.createElement('div');
         operacionItem.className = 'flex justify-between items-center p-4 border border-gray-200 rounded-lg hover:shadow-md transition';
         operacionItem.innerHTML = `
@@ -259,18 +275,22 @@ import Layout from '../layouts/Layout.astro';
     }
 
     function guardarOperacion(operacion) {
+      const nombreOperacionNormalizado = normalizarNombreOperacion(operacion.nombreOperacion);
+      const operacionExistente = operaciones.find(op => op.nombreOperacion === nombreOperacionNormalizado && editandoIndex !== operaciones.indexOf(op));
+      
+      if (operacionExistente) {
+        mostrarModalOperacion('Error', 'Ya existe una operación con este nombre.');
+        return;
+      }
+
       if (editandoIndex >= 0) {
-        operaciones[editandoIndex] = operacion;
+        operaciones[editandoIndex] = { nombreOperacion: nombreOperacionNormalizado, valorOperacion: operacion.valorOperacion };
         editandoIndex = -1;
         btnRegistrarOperacion.textContent = 'Registrar Operación';
         btnCancelarOperacion.classList.add('hidden');
         mostrarModalOperacion('¡Actualizado!', 'La operación ha sido actualizada exitosamente.');
       } else {
-        operaciones.push(operacion);
-        
-        const totalPaginas = Math.ceil(operaciones.length / itemsPorPagina);
-        paginaActual = totalPaginas;
-        
+        operaciones.push({ nombreOperacion: nombreOperacionNormalizado, valorOperacion: operacion.valorOperacion });
         mostrarModalOperacion('¡Registrado!', 'La operación ha sido registrada exitosamente.');
       }
       
@@ -295,7 +315,7 @@ import Layout from '../layouts/Layout.astro';
       operaciones.splice(index, 1);
       localStorage.setItem('operaciones', JSON.stringify(operaciones));
       
-      const totalPaginas = Math.ceil(operaciones.length / itemsPorPagina);
+      const totalPaginas = Math.ceil(operacionesFiltradas.length / itemsPorPagina);
       if (paginaActual > totalPaginas && totalPaginas > 0) {
         paginaActual = totalPaginas;
       }
@@ -330,20 +350,27 @@ import Layout from '../layouts/Layout.astro';
         return;
       }
 
-      // Crear un libro de Excel con SheetJS
       const workbook = XLSX.utils.book_new();
       const worksheetData = [
         ['Nombre de la Operación', 'Valor (COP)'],
         ...operaciones.map(op => [
           op.nombreOperacion,
-          new Intl.NumberFormat('es-CO').format(op.valorOperacion)
+          Number(op.valorOperacion) // Asegurar que sea número
         ])
       ];
 
       const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+      // Aplicar formato numérico a la columna de valor
+      const range = XLSX.utils.decode_range(worksheet['!ref']);
+      for (let R = 1; R <= range.e.r; R++) {
+        const cellAddress = { c: 1, r: R };
+        const cellRef = XLSX.utils.encode_cell(cellAddress);
+        if (worksheet[cellRef]) {
+          worksheet[cellRef].t = 'n';
+          worksheet[cellRef].z = '#,##0.00';
+        }
+      }
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Operaciones');
-
-      // Descargar el archivo
       XLSX.writeFile(workbook, `Operaciones_${new Date().toISOString().split('T')[0]}.xlsx`);
       mostrarModalOperacion('Éxito', 'El archivo Excel ha sido generado y descargado correctamente.');
     }
@@ -351,7 +378,7 @@ import Layout from '../layouts/Layout.astro';
     // Event Listeners
     formOperacion.addEventListener('submit', (e) => {
       e.preventDefault();
-      const nombreOperacion = normalizarNombreOperacion(document.getElementById('nombreOperacion').value);
+      const nombreOperacion = document.getElementById('nombreOperacion').value;
       const valorOperacion = parseFloat(document.getElementById('valorOperacion').value);
 
       if (nombreOperacion && !isNaN(valorOperacion) && valorOperacion >= 0) {
@@ -371,7 +398,7 @@ import Layout from '../layouts/Layout.astro';
     });
     
     btnSiguienteOperacion.addEventListener('click', () => {
-      const totalPaginas = Math.ceil(operaciones.length / itemsPorPagina);
+      const totalPaginas = Math.ceil(operacionesFiltradas.length / itemsPorPagina);
       if (paginaActual < totalPaginas) {
         cambiarPaginaOperacion(paginaActual + 1);
       }
@@ -382,16 +409,23 @@ import Layout from '../layouts/Layout.astro';
       const itemInicio = (paginaActual - 1) * parseInt(e.target.oldValue || 10) + 1;
       paginaActual = Math.ceil(itemInicio / itemsPorPagina);
       paginaActual = Math.max(1, paginaActual);
+      e.target.oldValue = e.target.value;
       cargarOperaciones();
     });
 
     btnExportarExcel.addEventListener('click', exportarExcel);
 
+    // Evento para el filtro de búsqueda
+    filtroOperacion.addEventListener('input', () => {
+      paginaActual = 1; // Reiniciar a la primera página al filtrar
+      cargarOperaciones();
+    });
+
     document.addEventListener('DOMContentLoaded', () => {
       itemsPorPagina = parseInt(itemsPerPageOperacion.value);
+      itemsPerPageOperacion.oldValue = itemsPerPageOperacion.value;
       cargarOperaciones();
 
-      // Verificar que SheetJS está cargado
       if (typeof XLSX === 'undefined') {
         console.warn("Advertencia: SheetJS no está cargado correctamente. El botón de exportar Excel podría no funcionar.");
       }
