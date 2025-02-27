@@ -40,6 +40,24 @@ import Layout from '../layouts/Layout.astro';
     
     <div id="listaOperaciones" class="space-y-4 min-h-64"></div>
     
+    <!-- Filtro de fechas para exportación y botón de descarga -->
+    <div class="mt-6 flex flex-col sm:flex-row gap-4 items-center">
+      <div class="flex items-center gap-2">
+        <label for="fechaInicioExport" class="text-sm font-medium text-gray-700">Fecha Inicio:</label>
+        <input type="date" id="fechaInicioExport" class="px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm" />
+      </div>
+      <div class="flex items-center gap-2">
+        <label for="fechaFinExport" class="text-sm font-medium text-gray-700">Fecha Fin:</label>
+        <input type="date" id="fechaFinExport" class="px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm" />
+      </div>
+      <button id="btnExportarExcel" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium flex items-center gap-2 shadow-md hover:shadow-lg">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+        </svg>
+        Exportar a Excel
+      </button>
+    </div>
+    
     <!-- Controles de paginación -->
     <div class="flex justify-between items-center mt-6">
       <div class="text-sm text-gray-600" id="totalInfoOperacion">Total: 0 operaciones</div>
@@ -71,6 +89,9 @@ import Layout from '../layouts/Layout.astro';
     </div>
   </div>
 
+  <!-- Importar la biblioteca SheetJS -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
   <script>
     // Variables globales
     let operaciones = [];
@@ -93,8 +114,11 @@ import Layout from '../layouts/Layout.astro';
     const paginationInfoOperacion = document.getElementById('paginationInfoOperacion');
     const totalInfoOperacion = document.getElementById('totalInfoOperacion');
     const itemsPerPageOperacion = document.getElementById('itemsPerPageOperacion');
+    const fechaInicioExport = document.getElementById('fechaInicioExport');
+    const fechaFinExport = document.getElementById('fechaFinExport');
+    const btnExportarExcel = document.getElementById('btnExportarExcel');
     
-    // Función para normalizar el nombre de la operación (opcional, similar a normalizarNombre)
+    // Función para normalizar el nombre de la operación
     function normalizarNombreOperacion(nombre) {
       return nombre.trim().split(' ').map(palabra => 
         palabra.charAt(0).toUpperCase() + palabra.slice(1).toLowerCase()
@@ -309,6 +333,48 @@ import Layout from '../layouts/Layout.astro';
       btnCancelarOperacion.classList.add('hidden');
     }
 
+    // Función para exportar a Excel con filtro por rango de fechas
+    function exportarExcel() {
+      const fechaInicio = fechaInicioExport.value;
+      const fechaFin = fechaFinExport.value;
+
+      let operacionesExportar = operaciones;
+
+      // Filtrar operaciones basadas en las producciones en el rango de fechas (si se especifican)
+      if (fechaInicio && fechaFin) {
+        const producciones = JSON.parse(localStorage.getItem('producciones')) || [];
+        const produccionesFiltradas = producciones.filter(prod => {
+          const fechaProduccion = new Date(prod.fecha).toISOString().split('T')[0];
+          return fechaProduccion >= fechaInicio && fechaProduccion <= fechaFin;
+        });
+
+        const operacionesUsadas = [...new Set(produccionesFiltradas.map(prod => prod.operacion))];
+        operacionesExportar = operaciones.filter(op => operacionesUsadas.includes(op.nombreOperacion));
+      }
+
+      if (operacionesExportar.length === 0) {
+        mostrarModalOperacion('Advertencia', 'No hay operaciones para exportar en el rango de fechas seleccionado.');
+        return;
+      }
+
+      // Crear un libro de Excel con SheetJS
+      const workbook = XLSX.utils.book_new();
+      const worksheetData = [
+        ['Nombre de la Operación', 'Valor (COP)'],
+        ...operacionesExportar.map(op => [
+          op.nombreOperacion,
+          new Intl.NumberFormat('es-CO').format(op.valorOperacion)
+        ])
+      ];
+
+      const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Operaciones');
+
+      // Descargar el archivo
+      XLSX.writeFile(workbook, `Operaciones_${fechaInicio || 'Todas'}_${fechaFin || 'Todas'}.xlsx`);
+      mostrarModalOperacion('Éxito', 'El archivo Excel ha sido generado y descargado correctamente.');
+    }
+
     // Event Listeners
     formOperacion.addEventListener('submit', (e) => {
       e.preventDefault();
@@ -346,9 +412,23 @@ import Layout from '../layouts/Layout.astro';
       cargarOperaciones();
     });
 
+    btnExportarExcel.addEventListener('click', exportarExcel);
+
     document.addEventListener('DOMContentLoaded', () => {
       itemsPorPagina = parseInt(itemsPerPageOperacion.value);
       cargarOperaciones();
+
+      // Establecer fechas por defecto en los campos de exportación (hoy y hace 30 días)
+      const hoy = new Date();
+      const hace30Dias = new Date(hoy);
+      hace30Dias.setDate(hoy.getDate() - 30);
+      fechaInicioExport.value = hace30Dias.toISOString().split('T')[0];
+      fechaFinExport.value = hoy.toISOString().split('T')[0];
+
+      // Verificar que SheetJS está cargado
+      if (typeof XLSX === 'undefined') {
+        console.warn("Advertencia: SheetJS no está cargado correctamente. El botón de exportar Excel podría no funcionar.");
+      }
     });
   </script>
 </Layout>
