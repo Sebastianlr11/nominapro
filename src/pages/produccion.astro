@@ -148,6 +148,9 @@ import Layout from '../layouts/Layout.astro';
       operacionesDisponibles = JSON.parse(localStorage.getItem('operaciones')) || [];
       operacionSelect.innerHTML = '<option value="">Seleccione una operación</option>';
       
+      // Ordenar operaciones alfabéticamente por nombreOperacion
+      operacionesDisponibles.sort((a, b) => a.nombreOperacion.localeCompare(b.nombreOperacion));
+      
       operacionesDisponibles.forEach(op => {
         const option = document.createElement('option');
         option.value = op.nombreOperacion;
@@ -399,7 +402,7 @@ import Layout from '../layouts/Layout.astro';
         return;
       }
 
-      // Crear un libro de Excel con SheetJS (asumimos que tienes la biblioteca cargada)
+      // Crear un libro de Excel con SheetJS
       const workbook = XLSX.utils.book_new();
       const worksheetData = [
         ['Empleado', 'Operación', 'Cantidad', 'Fecha', 'Total Ganado (COP)'],
@@ -468,7 +471,7 @@ import Layout from '../layouts/Layout.astro';
     document.addEventListener('DOMContentLoaded', () => {
       itemsPorPagina = parseInt(itemsPerPageProduccion.value);
       cargarEmpleadosDisponibles(); // Cargar empleados para el select
-      cargarOperacionesDisponibles(); // Cargar operaciones para el select
+      cargarOperacionesDisponibles(); // Cargar operaciones para el select, ordenadas alfabéticamente
       cargarProducciones(); // Cargar producciones
 
       // Establecer fechas por defecto en los campos de descarga (hoy y hace 30 días)
