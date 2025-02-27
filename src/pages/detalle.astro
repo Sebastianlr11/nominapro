@@ -265,18 +265,19 @@ import Layout from '../layouts/Layout.astro';
 
       // Crear lista de detalle
       detalle = produccionesFiltradas.map(prod => {
-        const operacion = operaciones.find(op => op.nombreOperacion === prod.operacion) || { valorOperacion: 0 };
+        const operacion = operaciones.find(op => op.nombreOperacion === prod.operacion) || { valorOperacion: 0, nombreOperacion: 'No encontrada' };
         const totalGanado = prod.cantidad * operacion.valorOperacion;
         const fechaFormateada = formatearFecha(prod.fecha);
         return {
           fecha: fechaFormateada,
           operacion: prod.operacion,
           cantidad: prod.cantidad,
+          valorOperacion: operacion.valorOperacion,
           totalGanado: totalGanado
         };
       });
 
-      // Ordenar por fecha (usando el formato original YYYY-MM-DD para consistencia)
+      // Ordenar por fecha
       detalle.sort((a, b) => {
         const fechaA = a.fecha.split('/').reverse().join('-');
         const fechaB = b.fecha.split('/').reverse().join('-');
@@ -317,7 +318,7 @@ import Layout from '../layouts/Layout.astro';
       totalGeneralDetalle.textContent = `$${new Intl.NumberFormat('es-CO').format(totalGeneral)} COP`;
     }
 
-    // Función para generar y descargar un PDF con el recibo detallado
+    // Función para generar y descargar un PDF con diseño profesional
     function descargarPDF() {
       const empleado = empleadoSelect.value;
       const fechaInicio = fechaInicioDetalle.value;
@@ -341,57 +342,92 @@ import Layout from '../layouts/Layout.astro';
         }
 
         const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
+        const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 
-        // Título del PDF
-        doc.setFontSize(16);
-        doc.text('Detalle de Producción', 105, 20, { align: 'center' });
-        
+        // Configuración de márgenes y estilos
+        const marginLeft = 10;
+        const marginTop = 10;
+        let y = marginTop;
+
+        // Título
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.text('RECIBO DE PRODUCCIÓN', 148.5, y, { align: 'center' });
+        y += 10;
+
         // Información del empleado y período
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
         const empleadoInfo = empleados.find(emp => emp.nombre === empleado) || { nombre: empleado, cargo: 'No especificado', documento: 'No disponible' };
-        doc.setFontSize(12);
-        doc.text(`Empleado: ${empleadoInfo.nombre} - ${empleadoInfo.cargo} (Doc: ${empleadoInfo.documento})`, 105, 30, { align: 'center' });
-        doc.text(`Período: ${formatearFecha(fechaInicio)} - ${formatearFecha(fechaFin)}`, 105, 35, { align: 'center' });
+        doc.text(`Empleado: ${empleadoInfo.nombre}`, marginLeft, y);
+        doc.text(`Cargo: ${empleadoInfo.cargo}`, 100, y);
+        doc.text(`Documento: ${empleadoInfo.documento}`, 200, y);
+        y += 5;
+        doc.text(`Período: ${formatearFecha(fechaInicio)} - ${formatearFecha(fechaFin)}`, marginLeft, y);
+        doc.text(`Emitido el: ${formatearFecha(new Date().toISOString().split('T')[0])}`, 200, y);
+        y += 10;
+
+        // Línea divisoria
+        doc.setLineWidth(0.5);
+        doc.line(marginLeft, y, 287 - marginLeft, y);
+        y += 5;
 
         // Tabla de detalle
         const tableData = [
-          ['Fecha', 'Operación', 'Cantidad', 'Total Ganado (COP)'],
+          ['Fecha', 'Operación', 'Cantidad', 'Valor Unitario (COP)', 'Total Ganado (COP)'],
           ...detalle.map(item => {
-            const operacion = operaciones.find(op => op.nombreOperacion === item.operacion) || { nombreOperacion: 'No encontrada' };
+            const operacion = operaciones.find(op => op.nombreOperacion === item.operacion) || { nombreOperacion: 'No encontrada', valorOperacion: 0 };
             return [
               item.fecha,
               operacion.nombreOperacion,
               item.cantidad,
+              new Intl.NumberFormat('es-CO').format(item.valorOperacion),
               new Intl.NumberFormat('es-CO').format(item.totalGanado)
             ];
           })
         ];
 
         doc.autoTable({
-          startY: 45,
+          startY: y,
           head: [tableData[0]],
           body: tableData.slice(1),
           theme: 'grid',
-          styles: { fontSize: 10, cellPadding: 2 },
-          headStyles: { fillColor: [41, 128, 185], textColor: [255, 255, 255], fontStyle: 'bold' },
+          styles: {
+            fontSize: 8,
+            cellPadding: 1,
+            overflow: 'linebreak',
+            minCellHeight: 4
+          },
+          headStyles: {
+            fillColor: [41, 128, 185],
+            textColor: [255, 255, 255],
+            fontStyle: 'bold',
+            fontSize: 9
+          },
           columnStyles: {
-            0: { cellWidth: 40 },
-            1: { cellWidth: 60 },
-            2: { cellWidth: 30 },
-            3: { cellWidth: 40 }
+            0: { cellWidth: 30 }, // Fecha
+            1: { cellWidth: 100 }, // Operación
+            2: { cellWidth: 30 }, // Cantidad
+            3: { cellWidth: 40 }, // Valor Unitario
+            4: { cellWidth: 40 }  // Total Ganado
+          },
+          margin: { left: marginLeft, right: marginLeft },
+          didDrawPage: () => {
+            // Asegurar que no se agreguen páginas adicionales
+            doc.setFontSize(10);
+            const totalGeneral = detalle.reduce((sum, item) => sum + (item.totalGanado || 0), 0);
+            const finalY = doc.lastAutoTable.finalY || y;
+            if (finalY < 180) {
+              doc.text(`Total General: $${new Intl.NumberFormat('es-CO').format(totalGeneral)} COP`, 287 - marginLeft, 190, { align: 'right' });
+              doc.setFontSize(8);
+              doc.text('Firma Empleado: ___________________________', marginLeft, 200);
+              doc.text('Firma Supervisor: __________________________', 287 - marginLeft, 200, { align: 'right' });
+            }
           }
         });
 
-        // Total general
-        const totalGeneral = detalle.reduce((sum, item) => sum + (item.totalGanado || 0), 0);
-        const finalY = doc.lastAutoTable ? doc.lastAutoTable.finalY : 45;
-        doc.text(`Total General: $${new Intl.NumberFormat('es-CO').format(totalGeneral)} COP`, 105, finalY + 10, { align: 'center' });
-
-        // Fecha de emisión
-        doc.text(`Emitido el: ${formatearFecha(new Date().toISOString().split('T')[0])}`, 105, finalY + 20, { align: 'center' });
-
         // Descargar el PDF
-        doc.save(`Detalle_${empleado}_${fechaInicio}_${fechaFin}.pdf`);
+        doc.save(`Recibo_Produccion_${empleado}_${fechaInicio}_${fechaFin}.pdf`);
         
         mostrarModalDetalle('Éxito', 'El PDF ha sido generado y descargado correctamente.');
       } catch (error) {
