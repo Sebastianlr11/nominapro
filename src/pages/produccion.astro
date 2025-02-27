@@ -138,7 +138,7 @@ import Layout from '../layouts/Layout.astro';
 
       empleadosDisponibles.forEach(emp => {
         const option = document.createElement('option');
-        option.value = emp.nombre; // Usamos el nombre como valor para identificar al empleado
+        option.value = emp.nombre;
         option.textContent = `${emp.nombre} - ${emp.cargo} (Doc: ${emp.documento})`;
         empleadoSelect.appendChild(option);
       });
@@ -148,7 +148,6 @@ import Layout from '../layouts/Layout.astro';
       operacionesDisponibles = JSON.parse(localStorage.getItem('operaciones')) || [];
       operacionSelect.innerHTML = '<option value="">Seleccione una operación</option>';
 
-      // Ordenar operaciones alfabéticamente por nombreOperacion
       operacionesDisponibles.sort((a, b) => a.nombreOperacion.localeCompare(b.nombreOperacion));
 
       operacionesDisponibles.forEach(op => {
@@ -181,7 +180,6 @@ import Layout from '../layouts/Layout.astro';
 
       modalGeneralProduccion.classList.remove('hidden');
 
-      // Agregar event listener para cerrar el modal con "Enter"
       const handleKeyDown = (event) => {
         if (event.key === 'Enter') {
           ocultarModalProduccion();
@@ -190,7 +188,6 @@ import Layout from '../layouts/Layout.astro';
 
       document.addEventListener('keydown', handleKeyDown);
 
-      // Remover el event listener cuando el modal se oculta
       const antiguoOcultar = ocultarModalProduccion;
       ocultarModalProduccion = () => {
         document.removeEventListener('keydown', handleKeyDown);
@@ -202,7 +199,6 @@ import Layout from '../layouts/Layout.astro';
       modalGeneralProduccion.classList.add('hidden');
     }
 
-    // Función para actualizar los controles de paginación
     function actualizarPaginacionProduccion() {
       const totalPaginas = Math.ceil(producciones.length / itemsPorPagina);
 
@@ -293,12 +289,15 @@ import Layout from '../layouts/Layout.astro';
         const operacionValor = operacion ? operacion.valorOperacion : 0;
         const totalGanado = prod.cantidad * operacionValor;
 
+        const [year, month, day] = prod.fecha.split('-');
+        const fechaFormateada = `${day}/${month}/${year}`;
+
         const produccionItem = document.createElement('div');
         produccionItem.className = 'flex justify-between items-center p-4 border border-gray-200 rounded-lg hover:shadow-md transition';
         produccionItem.innerHTML = `
           <div>
             <p class="text-gray-800 font-medium">${empleadoNombre} - ${operacionNombre} - ${prod.cantidad} unidades</p>
-            <p class="text-sm text-gray-600">Fecha: ${new Date(prod.fecha).toLocaleDateString('es-CO')} | Total ganado: $${new Intl.NumberFormat('es-CO').format(totalGanado)} COP</p>
+            <p class="text-sm text-gray-600">Fecha: ${fechaFormateada} | Total ganado: $${new Intl.NumberFormat('es-CO').format(totalGanado)} COP</p>
           </div>
           <div class="flex space-x-2">
             <button class="btn-editar-produccion flex items-center justify-center rounded-lg px-3 py-1.5 bg-blue-100 text-blue-700 hover:bg-blue-200 transition" data-index="${index}">
@@ -335,10 +334,8 @@ import Layout from '../layouts/Layout.astro';
         mostrarModalProduccion('¡Actualizado!', 'La producción ha sido actualizada exitosamente.');
       } else {
         producciones.push(produccion);
-
         const totalPaginas = Math.ceil(producciones.length / itemsPorPagina);
         paginaActual = totalPaginas;
-
         mostrarModalProduccion('¡Registrado!', 'La producción ha sido registrada exitosamente.');
       }
 
@@ -354,9 +351,12 @@ import Layout from '../layouts/Layout.astro';
       const empleadoNombre = empleado ? empleado.nombre : 'Empleado no encontrado';
       const operacionNombre = operacion ? operacion.nombreOperacion : 'Operación no encontrada';
 
+      const [year, month, day] = produccion.fecha.split('-');
+      const fechaFormateada = `${day}/${month}/${year}`;
+
       mostrarModalProduccion(
         'Confirmar eliminación',
-        `¿Estás seguro de que deseas eliminar la producción de "${empleadoNombre}" para "${operacionNombre}" del ${new Date(produccion.fecha).toLocaleDateString('es-CO')}?`,
+        `¿Estás seguro de que deseas eliminar la producción de "${empleadoNombre}" para "${operacionNombre}" del ${fechaFormateada}?`,
         true,
         () => {
           eliminarProduccion(index);
@@ -382,7 +382,7 @@ import Layout from '../layouts/Layout.astro';
       document.getElementById('empleadoProduccion').value = produccion.empleado;
       document.getElementById('operacionProduccion').value = produccion.operacion;
       document.getElementById('cantidadProduccion').value = produccion.cantidad;
-      document.getElementById('fechaProduccion').value = produccion.fecha; // Usar la fecha directamente
+      document.getElementById('fechaProduccion').value = produccion.fecha; // Usar la fecha en formato YYYY-MM-DD
 
       editandoIndex = index;
       btnRegistrarProduccion.textContent = 'Actualizar Producción';
@@ -398,7 +398,6 @@ import Layout from '../layouts/Layout.astro';
       btnCancelarProduccion.classList.add('hidden');
     }
 
-    // Función para descargar Excel con filtro por rango de fechas
     function descargarExcel() {
       const fechaInicio = fechaInicioDescarga.value;
       const fechaFin = fechaFinDescarga.value;
@@ -409,7 +408,7 @@ import Layout from '../layouts/Layout.astro';
       }
 
       const produccionesFiltradas = producciones.filter(prod => {
-        const fechaProduccion = new Date(prod.fecha).toISOString().split('T')[0];
+        const fechaProduccion = prod.fecha;
         return fechaProduccion >= fechaInicio && fechaProduccion <= fechaFin;
       });
 
@@ -418,7 +417,6 @@ import Layout from '../layouts/Layout.astro';
         return;
       }
 
-      // Crear un libro de Excel con SheetJS
       const workbook = XLSX.utils.book_new();
       const worksheetData = [
         ['Empleado', 'Operación', 'Cantidad', 'Fecha', 'Total Ganado (COP)'],
@@ -426,11 +424,13 @@ import Layout from '../layouts/Layout.astro';
           const empleado = empleadosDisponibles.find(emp => emp.nombre === prod.empleado) || { nombre: 'No encontrado' };
           const operacion = operacionesDisponibles.find(op => op.nombreOperacion === prod.operacion) || { nombreOperacion: 'No encontrada', valorOperacion: 0 };
           const totalGanado = prod.cantidad * operacion.valorOperacion;
+          const [year, month, day] = prod.fecha.split('-');
+          const fechaFormateada = `${day}/${month}/${year}`;
           return [
             empleado.nombre,
             operacion.nombreOperacion,
             prod.cantidad,
-            new Date(prod.fecha).toLocaleDateString('es-CO'),
+            fechaFormateada,
             new Intl.NumberFormat('es-CO').format(totalGanado)
           ];
         })
@@ -438,8 +438,6 @@ import Layout from '../layouts/Layout.astro';
 
       const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Producciones');
-
-      // Descargar el archivo
       XLSX.writeFile(workbook, 'Producciones_' + new Date().toISOString().split('T')[0] + '.xlsx');
     }
 
@@ -449,7 +447,7 @@ import Layout from '../layouts/Layout.astro';
       const empleado = document.getElementById('empleadoProduccion').value;
       const operacion = document.getElementById('operacionProduccion').value;
       const cantidad = parseInt(document.getElementById('cantidadProduccion').value);
-      const fecha = document.getElementById('fechaProduccion').value;
+      const fecha = document.getElementById('fechaProduccion').value; // Guardar como YYYY-MM-DD
 
       if (empleado && operacion && !isNaN(cantidad) && cantidad > 0 && fecha) {
         guardarProduccion({ empleado, operacion, cantidad, fecha });
@@ -486,11 +484,10 @@ import Layout from '../layouts/Layout.astro';
 
     document.addEventListener('DOMContentLoaded', () => {
       itemsPorPagina = parseInt(itemsPerPageProduccion.value);
-      cargarEmpleadosDisponibles(); // Cargar empleados para el select
-      cargarOperacionesDisponibles(); // Cargar operaciones para el select, ordenadas alfabéticamente
-      cargarProducciones(); // Cargar producciones
+      cargarEmpleadosDisponibles();
+      cargarOperacionesDisponibles();
+      cargarProducciones();
 
-      // Establecer fechas por defecto en los campos de descarga (hoy y hace 30 días)
       const hoy = new Date();
       const hace30Dias = new Date(hoy);
       hace30Dias.setDate(hoy.getDate() - 30);
