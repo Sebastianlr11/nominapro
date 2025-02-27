@@ -32,9 +32,20 @@ import Layout from '../layouts/Layout.astro';
   <div class="bg-white p-8 rounded-3xl shadow-2xl max-w-lg mx-auto">
     <h2 class="text-2xl font-semibold mb-6 text-gray-800 text-center">Agregar Nuevo Empleado</h2>
     <form id="formEmpleado" class="space-y-4">
-      <div>
-        <label for="documento" class="block text-sm font-medium text-gray-700">Documento de Identidad</label>
-        <input type="text" id="documento" name="documento" class="mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500" required />
+      <div class="flex gap-4">
+        <div class="flex-1">
+          <label for="tipoDocumento" class="block text-sm font-medium text-gray-700">Tipo de Documento</label>
+          <select id="tipoDocumento" name="tipoDocumento" class="mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500" required>
+            <option value="">Seleccione</option>
+            <option value="C.C.">C.C.</option>
+            <option value="C.E.">C.E.</option>
+            <option value="PPT">PPT</option>
+          </select>
+        </div>
+        <div class="flex-1">
+          <label for="numeroDocumento" class="block text-sm font-medium text-gray-700">Número de Documento</label>
+          <input type="text" id="numeroDocumento" name="numeroDocumento" class="mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500" required />
+        </div>
       </div>
       <div>
         <label for="nombre" class="block text-sm font-medium text-gray-700">Nombre</label>
@@ -131,6 +142,8 @@ import Layout from '../layouts/Layout.astro';
     const listaCargos = document.getElementById('listaCargos');
     const cargosLista = document.getElementById('cargosLista');
     const cargoSelect = document.getElementById('cargo');
+    const tipoDocumentoSelect = document.getElementById('tipoDocumento');
+    const numeroDocumentoInput = document.getElementById('numeroDocumento');
     
     // Cargar datos desde localStorage
     function cargarDatos() {
@@ -203,7 +216,6 @@ import Layout from '../layouts/Layout.astro';
           localStorage.setItem('cargos', JSON.stringify(cargos));
           mostrarModal('¡Eliminado!', 'El cargo ha sido eliminado exitosamente.');
           actualizarCargos();
-          // Verificar si algún empleado usa este cargo y actualizarlo
           empleados = empleados.map(emp => {
             if (emp.cargo === cargo) {
               emp.cargo = ''; // O asignar un cargo por defecto o dejarlo vacío
@@ -211,7 +223,7 @@ import Layout from '../layouts/Layout.astro';
             return emp;
           });
           localStorage.setItem('empleados', JSON.stringify(empleados));
-          cargarEmpleados(); // Actualizar la lista de empleados
+          cargarEmpleados();
         }
       );
     }
@@ -245,7 +257,6 @@ import Layout from '../layouts/Layout.astro';
         cargosLista.appendChild(li);
       });
 
-      // Actualizar el select de cargos en el formulario de empleados
       cargoSelect.innerHTML = '<option value="">Seleccione un cargo</option>';
       cargos.forEach(cargo => {
         const option = document.createElement('option');
@@ -255,7 +266,7 @@ import Layout from '../layouts/Layout.astro';
       });
     }
 
-    // Funciones para empleados (manteniendo las existentes con ajustes para cargos dinámicos)
+    // Funciones para empleados
     function normalizarNombre(nombre) {
       return nombre.trim().split(' ').map(palabra => 
         palabra.charAt(0).toUpperCase() + palabra.slice(1).toLowerCase()
@@ -289,7 +300,6 @@ import Layout from '../layouts/Layout.astro';
       modalGeneral.classList.add('hidden');
     }
 
-    // Función para actualizar los controles de paginación
     function actualizarPaginacion() {
       const totalPaginas = Math.ceil(empleados.length / itemsPorPagina);
       
@@ -377,7 +387,7 @@ import Layout from '../layouts/Layout.astro';
         empleadoItem.innerHTML = `
           <div>
             <p class="text-gray-800 font-medium">${emp.nombre} - ${emp.cargo}</p>
-            <p class="text-sm text-gray-600">Documento: ${emp.documento}</p>
+            <p class="text-sm text-gray-600">Documento: ${emp.tipoDocumento} ${emp.numeroDocumento}</p>
           </div>
           <div class="flex space-x-2">
             <button class="btn-editar flex items-center justify-center rounded-lg px-3 py-1.5 bg-blue-100 text-blue-700 hover:bg-blue-200 transition" data-index="${index}">
@@ -406,6 +416,18 @@ import Layout from '../layouts/Layout.astro';
     }
 
     function guardarEmpleado(empleado) {
+      const documentoCompleto = `${empleado.tipoDocumento} ${empleado.numeroDocumento}`;
+      const empleadoExistente = empleados.find(emp => 
+        emp.tipoDocumento === empleado.tipoDocumento && 
+        emp.numeroDocumento === empleado.numeroDocumento && 
+        editandoIndex !== empleados.indexOf(emp)
+      );
+      
+      if (empleadoExistente) {
+        mostrarModal('Error', 'Ya existe un empleado con este tipo y número de documento.');
+        return;
+      }
+
       if (editandoIndex >= 0) {
         empleados[editandoIndex] = empleado;
         editandoIndex = -1;
@@ -428,7 +450,7 @@ import Layout from '../layouts/Layout.astro';
       const empleado = empleados[index];
       mostrarModal(
         'Confirmar eliminación', 
-        `¿Estás seguro de que deseas eliminar a ${empleado.nombre}?`, 
+        `¿Estás seguro de que deseas eliminar a ${empleado.nombre} (${empleado.tipoDocumento} ${empleado.numeroDocumento})?`, 
         true, 
         () => {
           eliminarEmpleado(index);
@@ -451,7 +473,8 @@ import Layout from '../layouts/Layout.astro';
 
     function editarEmpleado(index) {
       const empleado = empleados[index];
-      document.getElementById('documento').value = empleado.documento;
+      document.getElementById('tipoDocumento').value = empleado.tipoDocumento;
+      document.getElementById('numeroDocumento').value = empleado.numeroDocumento;
       document.getElementById('nombre').value = empleado.nombre;
       document.getElementById('cargo').value = empleado.cargo;
       
@@ -479,12 +502,13 @@ import Layout from '../layouts/Layout.astro';
     // Event Listeners
     formEmpleado.addEventListener('submit', (e) => {
       e.preventDefault();
-      const documento = document.getElementById('documento').value.trim();
+      const tipoDocumento = tipoDocumentoSelect.value;
+      const numeroDocumento = numeroDocumentoInput.value.trim();
       const nombre = normalizarNombre(document.getElementById('nombre').value);
       const cargo = document.getElementById('cargo').value;
 
-      if (documento && nombre && cargo) {
-        guardarEmpleado({ documento, nombre, cargo });
+      if (tipoDocumento && numeroDocumento && nombre && cargo) {
+        guardarEmpleado({ tipoDocumento, numeroDocumento, nombre, cargo });
       } else {
         mostrarModal('Error', 'Por favor, completa todos los campos.');
       }
@@ -499,7 +523,6 @@ import Layout from '../layouts/Layout.astro';
     btnCancelar.addEventListener('click', cancelarEdicion);
     btnCancelarCargo.addEventListener('click', cancelarEdicionCargo);
     
-    // Event listeners para la paginación
     btnAnterior.addEventListener('click', () => {
       if (paginaActual > 1) {
         cambiarPagina(paginaActual - 1);
@@ -513,18 +536,18 @@ import Layout from '../layouts/Layout.astro';
       }
     });
     
-    // Event listener para cambiar items por página
     itemsPerPage.addEventListener('change', (e) => {
       itemsPorPagina = parseInt(e.target.value);
       const itemInicio = (paginaActual - 1) * parseInt(e.target.oldValue || 10) + 1;
       paginaActual = Math.ceil(itemInicio / itemsPorPagina);
       paginaActual = Math.max(1, paginaActual);
+      e.target.oldValue = e.target.value;
       cargarEmpleados();
     });
 
-    // Inicializar la aplicación
     document.addEventListener('DOMContentLoaded', () => {
       itemsPorPagina = parseInt(itemsPerPage.value);
+      itemsPerPage.oldValue = itemsPerPage.value;
       cargarDatos();
       cargarEmpleados();
     });
