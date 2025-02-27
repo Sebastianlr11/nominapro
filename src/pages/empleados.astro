@@ -5,7 +5,30 @@ import Layout from '../layouts/Layout.astro';
 <Layout>
   <h1 class="text-4xl font-bold mb-8 text-gray-900 text-center">Registro de Empleados</h1>
 
-  <!-- Formulario de registro -->
+  <!-- Sección para gestionar cargos -->
+  <div class="bg-white p-8 rounded-3xl shadow-2xl max-w-lg mx-auto mb-8">
+    <h2 class="text-2xl font-semibold mb-6 text-gray-800 text-center">Gestionar Cargos</h2>
+    <div class="space-y-4">
+      <form id="formCargo" class="space-y-4">
+        <div>
+          <label for="nuevoCargo" class="block text-sm font-medium text-gray-700">Nuevo Cargo</label>
+          <input type="text" id="nuevoCargo" name="nuevoCargo" class="mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500" required />
+        </div>
+        <div class="flex gap-4">
+          <button type="submit" id="btnAgregarCargo" class="flex-1 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition">Agregar Cargo</button>
+          <button type="button" id="btnCancelarCargo" class="flex-1 bg-gray-500 text-white py-3 rounded-lg hover:bg-gray-600 transition hidden">Cancelar</button>
+        </div>
+      </form>
+
+      <!-- Lista de cargos -->
+      <div id="listaCargos" class="mt-4 space-y-2">
+        <h3 class="text-lg font-medium text-gray-800">Cargos Registrados</h3>
+        <ul id="cargosLista" class="list-disc pl-5 text-gray-600"></ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Formulario de registro de empleados -->
   <div class="bg-white p-8 rounded-3xl shadow-2xl max-w-lg mx-auto">
     <h2 class="text-2xl font-semibold mb-6 text-gray-800 text-center">Agregar Nuevo Empleado</h2>
     <form id="formEmpleado" class="space-y-4">
@@ -21,11 +44,6 @@ import Layout from '../layouts/Layout.astro';
         <label for="cargo" class="block text-sm font-medium text-gray-700">Cargo</label>
         <select id="cargo" name="cargo" class="mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500" required>
           <option value="">Seleccione un cargo</option>
-          <option value="Operario de Máquina Plana">Operario de Máquina Plana</option>
-          <option value="Operario de Máquina Fileteadora">Operario de Máquina Fileteadora</option>
-          <option value="Operario de Alistamiento">Operario de Alistamiento</option>
-          <option value="Operario de Máquina Collarín">Operario de Máquina Collarín</option>
-          <option value="Operario de Corte">Operario de Corte</option>
         </select>
       </div>
       <div class="flex gap-4">
@@ -85,7 +103,9 @@ import Layout from '../layouts/Layout.astro';
   <script>
     // Variables globales
     let empleados = [];
+    let cargos = [];
     let editandoIndex = -1;
+    let editandoCargoIndex = -1;
     let paginaActual = 1;
     let itemsPorPagina = 10;
     
@@ -104,8 +124,138 @@ import Layout from '../layouts/Layout.astro';
     const paginationInfo = document.getElementById('paginationInfo');
     const totalInfo = document.getElementById('totalInfo');
     const itemsPerPage = document.getElementById('itemsPerPage');
+    const formCargo = document.getElementById('formCargo');
+    const nuevoCargo = document.getElementById('nuevoCargo');
+    const btnAgregarCargo = document.getElementById('btnAgregarCargo');
+    const btnCancelarCargo = document.getElementById('btnCancelarCargo');
+    const listaCargos = document.getElementById('listaCargos');
+    const cargosLista = document.getElementById('cargosLista');
+    const cargoSelect = document.getElementById('cargo');
     
-    // Funciones
+    // Cargar datos desde localStorage
+    function cargarDatos() {
+      empleados = JSON.parse(localStorage.getItem('empleados')) || [];
+      cargos = JSON.parse(localStorage.getItem('cargos')) || [
+        'Operario de Máquina Plana',
+        'Operario de Máquina Fileteadora',
+        'Operario de Alistamiento',
+        'Operario de Máquina Collarín',
+        'Operario de Corte'
+      ];
+      actualizarCargos();
+    }
+
+    // Funciones para cargos
+    function normalizarCargo(cargo) {
+      return cargo.trim().split(' ').map(palabra => 
+        palabra.charAt(0).toUpperCase() + palabra.slice(1).toLowerCase()
+      ).join(' ');
+    }
+
+    function agregarCargo(cargo) {
+      const cargoNormalizado = normalizarCargo(cargo);
+      if (!cargos.includes(cargoNormalizado)) {
+        cargos.push(cargoNormalizado);
+        localStorage.setItem('cargos', JSON.stringify(cargos));
+        mostrarModal('¡Éxito!', 'El cargo ha sido agregado exitosamente.');
+        actualizarCargos();
+      } else {
+        mostrarModal('Error', 'El cargo ya existe.');
+      }
+    }
+
+    function editarCargo(index) {
+      const cargo = cargos[index];
+      nuevoCargo.value = cargo;
+      editandoCargoIndex = index;
+      btnAgregarCargo.textContent = 'Actualizar Cargo';
+      btnCancelarCargo.classList.remove('hidden');
+    }
+
+    function guardarCargo() {
+      if (editandoCargoIndex >= 0) {
+        const nuevoCargoValor = normalizarCargo(nuevoCargo.value);
+        if (cargos.includes(nuevoCargoValor) && cargos.indexOf(nuevoCargoValor) !== editandoCargoIndex) {
+          mostrarModal('Error', 'El cargo ya existe.');
+          return;
+        }
+        cargos[editandoCargoIndex] = nuevoCargoValor;
+        editandoCargoIndex = -1;
+        btnAgregarCargo.textContent = 'Agregar Cargo';
+        btnCancelarCargo.classList.add('hidden');
+        localStorage.setItem('cargos', JSON.stringify(cargos));
+        mostrarModal('¡Actualizado!', 'El cargo ha sido actualizado exitosamente.');
+      } else {
+        agregarCargo(nuevoCargo.value);
+      }
+      formCargo.reset();
+      actualizarCargos();
+    }
+
+    function eliminarCargo(index) {
+      const cargo = cargos[index];
+      mostrarModal(
+        'Confirmar eliminación', 
+        `¿Estás seguro de que deseas eliminar el cargo "${cargo}"?`, 
+        true, 
+        () => {
+          cargos.splice(index, 1);
+          localStorage.setItem('cargos', JSON.stringify(cargos));
+          mostrarModal('¡Eliminado!', 'El cargo ha sido eliminado exitosamente.');
+          actualizarCargos();
+          // Verificar si algún empleado usa este cargo y actualizarlo
+          empleados = empleados.map(emp => {
+            if (emp.cargo === cargo) {
+              emp.cargo = ''; // O asignar un cargo por defecto o dejarlo vacío
+            }
+            return emp;
+          });
+          localStorage.setItem('empleados', JSON.stringify(empleados));
+          cargarEmpleados(); // Actualizar la lista de empleados
+        }
+      );
+    }
+
+    function actualizarCargos() {
+      cargosLista.innerHTML = '';
+      cargos.forEach((cargo, index) => {
+        const li = document.createElement('li');
+        li.className = 'flex justify-between items-center text-gray-600';
+        li.innerHTML = `
+          ${cargo}
+          <div class="space-x-2">
+            <button class="btn-editar-cargo text-blue-600 hover:text-blue-800 transition" data-index="${index}">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+            </button>
+            <button class="btn-eliminar-cargo text-red-600 hover:text-red-800 transition" data-index="${index}">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+          </div>
+        `;
+        const btnEditarCargo = li.querySelector('.btn-editar-cargo');
+        btnEditarCargo.addEventListener('click', () => editarCargo(index));
+        
+        const btnEliminarCargo = li.querySelector('.btn-eliminar-cargo');
+        btnEliminarCargo.addEventListener('click', () => eliminarCargo(index));
+        
+        cargosLista.appendChild(li);
+      });
+
+      // Actualizar el select de cargos en el formulario de empleados
+      cargoSelect.innerHTML = '<option value="">Seleccione un cargo</option>';
+      cargos.forEach(cargo => {
+        const option = document.createElement('option');
+        option.value = cargo;
+        option.textContent = cargo;
+        cargoSelect.appendChild(option);
+      });
+    }
+
+    // Funciones para empleados (manteniendo las existentes con ajustes para cargos dinámicos)
     function normalizarNombre(nombre) {
       return nombre.trim().split(' ').map(palabra => 
         palabra.charAt(0).toUpperCase() + palabra.slice(1).toLowerCase()
@@ -120,12 +270,10 @@ import Layout from '../layouts/Layout.astro';
         btnCancelarModal.classList.remove('hidden');
         btnConfirmarModal.textContent = 'Confirmar';
         
-        // Configurar botón de confirmar
         const antiguoConfirm = btnConfirmarModal.onclick;
         btnConfirmarModal.onclick = () => {
           if (onConfirm) onConfirm();
           ocultarModal();
-          // Restaurar el manejador original
           btnConfirmarModal.onclick = antiguoConfirm;
         };
       } else {
@@ -145,30 +293,24 @@ import Layout from '../layouts/Layout.astro';
     function actualizarPaginacion() {
       const totalPaginas = Math.ceil(empleados.length / itemsPorPagina);
       
-      // Actualizar información de paginación
       const inicio = (paginaActual - 1) * itemsPorPagina + 1;
       const fin = Math.min(paginaActual * itemsPorPagina, empleados.length);
       paginationInfo.textContent = `Mostrando ${empleados.length > 0 ? inicio : 0}-${fin} de ${empleados.length}`;
       totalInfo.textContent = `Total: ${empleados.length} empleado${empleados.length !== 1 ? 's' : ''}`;
       
-      // Habilitar/deshabilitar botones de navegación
       btnAnterior.disabled = paginaActual <= 1;
       btnSiguiente.disabled = paginaActual >= totalPaginas;
       
-      // Crear controles de página
       paginationControls.innerHTML = '';
       
-      // Limitar el número de botones de página para evitar sobrecarga
       const maxPagesToShow = 5;
       let startPage = Math.max(1, paginaActual - Math.floor(maxPagesToShow / 2));
       let endPage = Math.min(totalPaginas, startPage + maxPagesToShow - 1);
       
-      // Ajustar si estamos en los extremos
       if (endPage - startPage + 1 < maxPagesToShow && startPage > 1) {
         startPage = Math.max(1, endPage - maxPagesToShow + 1);
       }
       
-      // Mostrar botón de primera página si necesario
       if (startPage > 1) {
         const btnFirstPage = document.createElement('button');
         btnFirstPage.className = 'px-3 py-1.5 border border-gray-300 rounded hover:bg-gray-100';
@@ -176,7 +318,6 @@ import Layout from '../layouts/Layout.astro';
         btnFirstPage.addEventListener('click', () => cambiarPagina(1));
         paginationControls.appendChild(btnFirstPage);
         
-        // Mostrar elipsis si hay salto
         if (startPage > 2) {
           const elipsis = document.createElement('span');
           elipsis.className = 'px-1';
@@ -185,7 +326,6 @@ import Layout from '../layouts/Layout.astro';
         }
       }
       
-      // Crear botones de página
       for (let i = startPage; i <= endPage; i++) {
         const btnPage = document.createElement('button');
         btnPage.className = `px-3 py-1.5 border rounded ${i === paginaActual ? 'bg-blue-600 text-white' : 'border-gray-300 hover:bg-gray-100'}`;
@@ -194,9 +334,7 @@ import Layout from '../layouts/Layout.astro';
         paginationControls.appendChild(btnPage);
       }
       
-      // Mostrar botón de última página si necesario
       if (endPage < totalPaginas) {
-        // Mostrar elipsis si hay salto
         if (endPage < totalPaginas - 1) {
           const elipsis = document.createElement('span');
           elipsis.className = 'px-1';
@@ -212,17 +350,13 @@ import Layout from '../layouts/Layout.astro';
       }
     }
     
-    // Función para cambiar de página
     function cambiarPagina(pagina) {
       paginaActual = pagina;
       cargarEmpleados();
     }
     
     function cargarEmpleados() {
-      // Cargar empleados desde localStorage
       empleados = JSON.parse(localStorage.getItem('empleados')) || [];
-      
-      // Actualizar la interfaz de paginación
       actualizarPaginacion();
       
       if (empleados.length === 0) {
@@ -232,14 +366,12 @@ import Layout from '../layouts/Layout.astro';
       
       listaEmpleados.innerHTML = '';
       
-      // Calcular índices para la página actual
       const inicio = (paginaActual - 1) * itemsPorPagina;
       const fin = Math.min(inicio + itemsPorPagina, empleados.length);
       const empleadosPagina = empleados.slice(inicio, fin);
       
-      // Renderizar solo los empleados de la página actual
       empleadosPagina.forEach((emp, i) => {
-        const index = inicio + i; // Índice real en el array completo
+        const index = inicio + i;
         const empleadoItem = document.createElement('div');
         empleadoItem.className = 'flex justify-between items-center p-4 border border-gray-200 rounded-lg hover:shadow-md transition';
         empleadoItem.innerHTML = `
@@ -263,7 +395,6 @@ import Layout from '../layouts/Layout.astro';
           </div>
         `;
         
-        // Agregar los event listeners a los botones
         const btnEditar = empleadoItem.querySelector('.btn-editar');
         btnEditar.addEventListener('click', () => editarEmpleado(index));
         
@@ -276,20 +407,15 @@ import Layout from '../layouts/Layout.astro';
 
     function guardarEmpleado(empleado) {
       if (editandoIndex >= 0) {
-        // Estamos editando un empleado existente
         empleados[editandoIndex] = empleado;
         editandoIndex = -1;
         btnRegistrar.textContent = 'Registrar Empleado';
         btnCancelar.classList.add('hidden');
         mostrarModal('¡Actualizado!', 'El empleado ha sido actualizado exitosamente.');
       } else {
-        // Estamos agregando un nuevo empleado
         empleados.push(empleado);
-        
-        // Si agregamos un nuevo empleado, ir a la última página
         const totalPaginas = Math.ceil(empleados.length / itemsPorPagina);
         paginaActual = totalPaginas;
-        
         mostrarModal('¡Registrado!', 'El empleado ha sido registrado exitosamente.');
       }
       
@@ -314,7 +440,6 @@ import Layout from '../layouts/Layout.astro';
       empleados.splice(index, 1);
       localStorage.setItem('empleados', JSON.stringify(empleados));
       
-      // Ajustar la página actual si es necesario
       const totalPaginas = Math.ceil(empleados.length / itemsPorPagina);
       if (paginaActual > totalPaginas && totalPaginas > 0) {
         paginaActual = totalPaginas;
@@ -334,7 +459,6 @@ import Layout from '../layouts/Layout.astro';
       btnRegistrar.textContent = 'Actualizar Empleado';
       btnCancelar.classList.remove('hidden');
       
-      // Hacer scroll hacia el formulario
       formEmpleado.scrollIntoView({ behavior: 'smooth' });
     }
     
@@ -345,20 +469,11 @@ import Layout from '../layouts/Layout.astro';
       btnCancelar.classList.add('hidden');
     }
 
-    // Función para buscar empleados
-    function buscarEmpleados(query) {
-      if (!query || query.trim() === '') {
-        return JSON.parse(localStorage.getItem('empleados')) || [];
-      }
-      
-      query = query.toLowerCase().trim();
-      const todosEmpleados = JSON.parse(localStorage.getItem('empleados')) || [];
-      
-      return todosEmpleados.filter(emp => 
-        emp.nombre.toLowerCase().includes(query) || 
-        emp.documento.toLowerCase().includes(query) || 
-        emp.cargo.toLowerCase().includes(query)
-      );
+    function cancelarEdicionCargo() {
+      formCargo.reset();
+      editandoCargoIndex = -1;
+      btnAgregarCargo.textContent = 'Agregar Cargo';
+      btnCancelarCargo.classList.add('hidden');
     }
 
     // Event Listeners
@@ -370,11 +485,19 @@ import Layout from '../layouts/Layout.astro';
 
       if (documento && nombre && cargo) {
         guardarEmpleado({ documento, nombre, cargo });
+      } else {
+        mostrarModal('Error', 'Por favor, completa todos los campos.');
       }
+    });
+    
+    formCargo.addEventListener('submit', (e) => {
+      e.preventDefault();
+      guardarCargo();
     });
     
     btnCancelarModal.addEventListener('click', ocultarModal);
     btnCancelar.addEventListener('click', cancelarEdicion);
+    btnCancelarCargo.addEventListener('click', cancelarEdicionCargo);
     
     // Event listeners para la paginación
     btnAnterior.addEventListener('click', () => {
@@ -393,10 +516,8 @@ import Layout from '../layouts/Layout.astro';
     // Event listener para cambiar items por página
     itemsPerPage.addEventListener('change', (e) => {
       itemsPorPagina = parseInt(e.target.value);
-      // Ajustar la página actual para mantener aproximadamente los mismos ítems visibles
       const itemInicio = (paginaActual - 1) * parseInt(e.target.oldValue || 10) + 1;
       paginaActual = Math.ceil(itemInicio / itemsPorPagina);
-      // Asegurar página válida
       paginaActual = Math.max(1, paginaActual);
       cargarEmpleados();
     });
@@ -404,6 +525,7 @@ import Layout from '../layouts/Layout.astro';
     // Inicializar la aplicación
     document.addEventListener('DOMContentLoaded', () => {
       itemsPorPagina = parseInt(itemsPerPage.value);
+      cargarDatos();
       cargarEmpleados();
     });
   </script>
