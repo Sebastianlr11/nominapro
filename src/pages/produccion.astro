@@ -36,7 +36,7 @@ import Layout from '../layouts/Layout.astro';
     </form>
   </div>
 
-  <!-- Lista de producciones con paginación y filtro de descarga -->
+  <!-- Lista de producciones con paginación y filtro -->
   <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-3xl mx-auto mt-8">
     <div class="flex justify-between items-center mb-6">
       <h2 class="text-2xl font-semibold text-gray-800">Lista de Producciones</h2>
@@ -48,6 +48,11 @@ import Layout from '../layouts/Layout.astro';
           <option value="20">20 por página</option>
         </select>
       </div>
+    </div>
+
+    <!-- Filtro de búsqueda por empleado -->
+    <div class="mb-6">
+      <input type="text" id="filtroProduccion" class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500" placeholder="Buscar producción por empleado...">
     </div>
 
     <div id="listaProducciones" class="space-y-4 min-h-64"></div>
@@ -104,6 +109,7 @@ import Layout from '../layouts/Layout.astro';
   <script>
     // Variables globales
     let producciones = [];
+    let produccionesFiltradas = [];
     let empleadosDisponibles = [];
     let operacionesDisponibles = [];
     let editandoIndex = -1;
@@ -130,6 +136,7 @@ import Layout from '../layouts/Layout.astro';
     const fechaInicioDescarga = document.getElementById('fechaInicioDescarga');
     const fechaFinDescarga = document.getElementById('fechaFinDescarga');
     const btnDescargarExcel = document.getElementById('btnDescargarExcel');
+    const filtroProduccion = document.getElementById('filtroProduccion');
 
     // Cargar empleados y operaciones desde localStorage para llenar los selects
     function cargarEmpleadosDisponibles() {
@@ -200,12 +207,12 @@ import Layout from '../layouts/Layout.astro';
     }
 
     function actualizarPaginacionProduccion() {
-      const totalPaginas = Math.ceil(producciones.length / itemsPorPagina);
+      const totalPaginas = Math.ceil(produccionesFiltradas.length / itemsPorPagina);
 
       const inicio = (paginaActual - 1) * itemsPorPagina + 1;
-      const fin = Math.min(paginaActual * itemsPorPagina, producciones.length);
-      paginationInfoProduccion.textContent = `Mostrando ${producciones.length > 0 ? inicio : 0}-${fin} de ${producciones.length}`;
-      totalInfoProduccion.textContent = `Total: ${producciones.length} producción${producciones.length !== 1 ? 'es' : ''}`;
+      const fin = Math.min(paginaActual * itemsPorPagina, produccionesFiltradas.length);
+      paginationInfoProduccion.textContent = `Mostrando ${produccionesFiltradas.length > 0 ? inicio : 0}-${fin} de ${produccionesFiltradas.length}`;
+      totalInfoProduccion.textContent = `Total: ${produccionesFiltradas.length} producción${produccionesFiltradas.length !== 1 ? 'es' : ''}`;
 
       btnAnteriorProduccion.disabled = paginaActual <= 1;
       btnSiguienteProduccion.disabled = paginaActual >= totalPaginas;
@@ -266,25 +273,31 @@ import Layout from '../layouts/Layout.astro';
 
     function cargarProducciones() {
       producciones = JSON.parse(localStorage.getItem('producciones')) || [];
-
+      
       // Ordenar producciones por fecha (de más reciente a más antigua)
       producciones.sort((a, b) => b.fecha.localeCompare(a.fecha));
+      
+      // Aplicar filtro si existe
+      const filtro = filtroProduccion.value.trim().toLowerCase();
+      produccionesFiltradas = filtro
+        ? producciones.filter(prod => prod.empleado.toLowerCase().includes(filtro))
+        : [...producciones];
 
       actualizarPaginacionProduccion();
 
-      if (producciones.length === 0) {
-        listaProducciones.innerHTML = '<p class="text-center text-gray-500 py-4">No hay producciones registradas</p>';
+      if (produccionesFiltradas.length === 0) {
+        listaProducciones.innerHTML = '<p class="text-center text-gray-500 py-4">No hay producciones registradas o coincidentes con el filtro</p>';
         return;
       }
 
       listaProducciones.innerHTML = '';
 
       const inicio = (paginaActual - 1) * itemsPorPagina;
-      const fin = Math.min(inicio + itemsPorPagina, producciones.length);
-      const produccionesPagina = producciones.slice(inicio, fin);
+      const fin = Math.min(inicio + itemsPorPagina, produccionesFiltradas.length);
+      const produccionesPagina = produccionesFiltradas.slice(inicio, fin);
 
       produccionesPagina.forEach((prod, i) => {
-        const index = producciones.findIndex(p => p === prod); // Índice original en el array ordenado
+        const index = producciones.findIndex(p => p === prod); // Índice original en el array completo
         const empleado = empleadosDisponibles.find(emp => emp.nombre === prod.empleado);
         const operacion = operacionesDisponibles.find(op => op.nombreOperacion === prod.operacion);
         const empleadoNombre = empleado ? empleado.nombre : 'Empleado no encontrado';
@@ -343,8 +356,7 @@ import Layout from '../layouts/Layout.astro';
       localStorage.setItem('producciones', JSON.stringify(producciones));
       formProduccion.reset();
       cargarProducciones();
-      // Al guardar, ir a la primera página para mostrar la producción más reciente
-      paginaActual = 1;
+      paginaActual = 1; // Ir a la primera página para mostrar la producción más reciente
     }
 
     function confirmarEliminarProduccion(index) {
@@ -371,7 +383,7 @@ import Layout from '../layouts/Layout.astro';
       producciones.splice(index, 1);
       localStorage.setItem('producciones', JSON.stringify(producciones));
 
-      const totalPaginas = Math.ceil(producciones.length / itemsPorPagina);
+      const totalPaginas = Math.ceil(produccionesFiltradas.length / itemsPorPagina);
       if (paginaActual > totalPaginas && totalPaginas > 0) {
         paginaActual = totalPaginas;
       }
@@ -410,12 +422,12 @@ import Layout from '../layouts/Layout.astro';
         return;
       }
 
-      const produccionesFiltradas = producciones.filter(prod => {
+      const produccionesFiltradasDescarga = producciones.filter(prod => {
         const fechaProduccion = prod.fecha;
         return fechaProduccion >= fechaInicio && fechaProduccion <= fechaFin;
       });
 
-      if (produccionesFiltradas.length === 0) {
+      if (produccionesFiltradasDescarga.length === 0) {
         mostrarModalProduccion('Advertencia', 'No hay producciones en el rango de fechas seleccionado.');
         return;
       }
@@ -426,10 +438,10 @@ import Layout from '../layouts/Layout.astro';
 
       const worksheetData = [
         ['Empleado', 'Operación', 'Cantidad', 'Fecha', 'Total Ganado (COP)'],
-        ...produccionesFiltradas.map(prod => {
+        ...produccionesFiltradasDescarga.map(prod => {
           const empleado = empleadosDisponibles.find(emp => emp.nombre === prod.empleado) || { nombre: 'No encontrado' };
           const operacion = operacionesDisponibles.find(op => op.nombreOperacion === prod.operacion) || { nombreOperacion: 'No encontrada', valorOperacion: 0 };
-          const cantidad = Number(prod.cantidad); // Asegurar que sea número
+          const cantidad = Number(prod.cantidad);
           const total = cantidad * operacion.valorOperacion;
           totalCantidad += cantidad;
           totalGanado += total;
@@ -438,17 +450,16 @@ import Layout from '../layouts/Layout.astro';
           return [
             empleado.nombre,
             operacion.nombreOperacion,
-            cantidad, // Guardar como número
+            cantidad,
             fechaFormateada,
-            total // Guardar como número
+            total
           ];
         }),
-        ['', '', totalCantidad, '', totalGanado] // Fila de totales
+        ['', '', totalCantidad, '', totalGanado]
       ];
 
       const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
 
-      // Aplicar formato a las columnas numéricas
       const range = XLSX.utils.decode_range(worksheet['!ref']);
       for (let R = 0; R <= range.e.r; R++) {
         for (let C = 0; C <= range.e.c; C++) {
@@ -456,9 +467,9 @@ import Layout from '../layouts/Layout.astro';
           const cellRef = XLSX.utils.encode_cell(cellAddress);
           if (!worksheet[cellRef]) continue;
 
-          if (C === 2 || C === 4) { // Columnas Cantidad (C) y Total Ganado (E)
-            worksheet[cellRef].t = 'n'; // Tipo numérico
-            worksheet[cellRef].z = '#,##0'; // Formato con separadores de miles
+          if (C === 2 || C === 4) {
+            worksheet[cellRef].t = 'n';
+            worksheet[cellRef].z = '#,##0';
           }
         }
       }
@@ -492,7 +503,7 @@ import Layout from '../layouts/Layout.astro';
     });
 
     btnSiguienteProduccion.addEventListener('click', () => {
-      const totalPaginas = Math.ceil(producciones.length / itemsPorPagina);
+      const totalPaginas = Math.ceil(produccionesFiltradas.length / itemsPorPagina);
       if (paginaActual < totalPaginas) {
         cambiarPaginaProduccion(paginaActual + 1);
       }
@@ -503,13 +514,21 @@ import Layout from '../layouts/Layout.astro';
       const itemInicio = (paginaActual - 1) * parseInt(e.target.oldValue || 10) + 1;
       paginaActual = Math.ceil(itemInicio / itemsPorPagina);
       paginaActual = Math.max(1, paginaActual);
+      e.target.oldValue = e.target.value;
       cargarProducciones();
     });
 
     btnDescargarExcel.addEventListener('click', descargarExcel);
 
+    // Evento para el filtro de búsqueda
+    filtroProduccion.addEventListener('input', () => {
+      paginaActual = 1; // Reiniciar a la primera página al filtrar
+      cargarProducciones();
+    });
+
     document.addEventListener('DOMContentLoaded', () => {
       itemsPorPagina = parseInt(itemsPerPageProduccion.value);
+      itemsPerPageProduccion.oldValue = itemsPerPageProduccion.value;
       cargarEmpleadosDisponibles();
       cargarOperacionesDisponibles();
       cargarProducciones();
