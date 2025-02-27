@@ -49,9 +49,9 @@ import Layout from '../layouts/Layout.astro';
         </select>
       </div>
     </div>
-    
+
     <div id="listaProducciones" class="space-y-4 min-h-64"></div>
-    
+
     <!-- Filtro de fechas para descarga y botón de descarga -->
     <div class="mt-6 flex flex-col sm:flex-row gap-4 items-center">
       <div class="flex items-center gap-2">
@@ -69,7 +69,7 @@ import Layout from '../layouts/Layout.astro';
         Descargar Excel
       </button>
     </div>
-    
+
     <!-- Controles de paginación -->
     <div class="flex justify-between items-center mt-6">
       <div class="text-sm text-gray-600" id="totalInfoProduccion">Total: 0 producciones</div>
@@ -109,7 +109,7 @@ import Layout from '../layouts/Layout.astro';
     let editandoIndex = -1;
     let paginaActual = 1;
     let itemsPorPagina = 10;
-    
+
     const formProduccion = document.getElementById('formProduccion');
     const listaProducciones = document.getElementById('listaProducciones');
     const modalGeneralProduccion = document.getElementById('modalGeneralProduccion');
@@ -130,12 +130,12 @@ import Layout from '../layouts/Layout.astro';
     const fechaInicioDescarga = document.getElementById('fechaInicioDescarga');
     const fechaFinDescarga = document.getElementById('fechaFinDescarga');
     const btnDescargarExcel = document.getElementById('btnDescargarExcel');
-    
+
     // Cargar empleados y operaciones desde localStorage para llenar los selects
     function cargarEmpleadosDisponibles() {
       empleadosDisponibles = JSON.parse(localStorage.getItem('empleados')) || [];
       empleadoSelect.innerHTML = '<option value="">Seleccione un empleado</option>';
-      
+
       empleadosDisponibles.forEach(emp => {
         const option = document.createElement('option');
         option.value = emp.nombre; // Usamos el nombre como valor para identificar al empleado
@@ -147,10 +147,10 @@ import Layout from '../layouts/Layout.astro';
     function cargarOperacionesDisponibles() {
       operacionesDisponibles = JSON.parse(localStorage.getItem('operaciones')) || [];
       operacionSelect.innerHTML = '<option value="">Seleccione una operación</option>';
-      
+
       // Ordenar operaciones alfabéticamente por nombreOperacion
       operacionesDisponibles.sort((a, b) => a.nombreOperacion.localeCompare(b.nombreOperacion));
-      
+
       operacionesDisponibles.forEach(op => {
         const option = document.createElement('option');
         option.value = op.nombreOperacion;
@@ -162,11 +162,11 @@ import Layout from '../layouts/Layout.astro';
     function mostrarModalProduccion(titulo, mensaje, confirmar = false, onConfirm = null) {
       modalTituloProduccion.textContent = titulo;
       modalMensajeProduccion.textContent = mensaje;
-      
+
       if (confirmar) {
         btnCancelarModalProduccion.classList.remove('hidden');
         btnConfirmarModalProduccion.textContent = 'Confirmar';
-        
+
         const antiguoConfirm = btnConfirmarModalProduccion.onclick;
         btnConfirmarModalProduccion.onclick = () => {
           if (onConfirm) onConfirm();
@@ -178,8 +178,24 @@ import Layout from '../layouts/Layout.astro';
         btnConfirmarModalProduccion.textContent = 'Aceptar';
         btnConfirmarModalProduccion.onclick = ocultarModalProduccion;
       }
-      
+
       modalGeneralProduccion.classList.remove('hidden');
+
+      // Agregar event listener para cerrar el modal con "Enter"
+      const handleKeyDown = (event) => {
+        if (event.key === 'Enter') {
+          ocultarModalProduccion();
+        }
+      };
+
+      document.addEventListener('keydown', handleKeyDown);
+
+      // Remover el event listener cuando el modal se oculta
+      const antiguoOcultar = ocultarModalProduccion;
+      ocultarModalProduccion = () => {
+        document.removeEventListener('keydown', handleKeyDown);
+        antiguoOcultar();
+      };
     }
 
     function ocultarModalProduccion() {
@@ -189,32 +205,32 @@ import Layout from '../layouts/Layout.astro';
     // Función para actualizar los controles de paginación
     function actualizarPaginacionProduccion() {
       const totalPaginas = Math.ceil(producciones.length / itemsPorPagina);
-      
+
       const inicio = (paginaActual - 1) * itemsPorPagina + 1;
       const fin = Math.min(paginaActual * itemsPorPagina, producciones.length);
       paginationInfoProduccion.textContent = `Mostrando ${producciones.length > 0 ? inicio : 0}-${fin} de ${producciones.length}`;
       totalInfoProduccion.textContent = `Total: ${producciones.length} producción${producciones.length !== 1 ? 'es' : ''}`;
-      
+
       btnAnteriorProduccion.disabled = paginaActual <= 1;
       btnSiguienteProduccion.disabled = paginaActual >= totalPaginas;
-      
+
       paginationControlsProduccion.innerHTML = '';
-      
+
       const maxPagesToShow = 5;
       let startPage = Math.max(1, paginaActual - Math.floor(maxPagesToShow / 2));
       let endPage = Math.min(totalPaginas, startPage + maxPagesToShow - 1);
-      
+
       if (endPage - startPage + 1 < maxPagesToShow && startPage > 1) {
         startPage = Math.max(1, endPage - maxPagesToShow + 1);
       }
-      
+
       if (startPage > 1) {
         const btnFirstPage = document.createElement('button');
         btnFirstPage.className = 'px-3 py-1.5 border border-gray-300 rounded hover:bg-gray-100';
         btnFirstPage.textContent = '1';
         btnFirstPage.addEventListener('click', () => cambiarPaginaProduccion(1));
         paginationControlsProduccion.appendChild(btnFirstPage);
-        
+
         if (startPage > 2) {
           const elipsis = document.createElement('span');
           elipsis.className = 'px-1';
@@ -222,7 +238,7 @@ import Layout from '../layouts/Layout.astro';
           paginationControlsProduccion.appendChild(elipsis);
         }
       }
-      
+
       for (let i = startPage; i <= endPage; i++) {
         const btnPage = document.createElement('button');
         btnPage.className = `px-3 py-1.5 border rounded ${i === paginaActual ? 'bg-blue-600 text-white' : 'border-gray-300 hover:bg-gray-100'}`;
@@ -230,7 +246,7 @@ import Layout from '../layouts/Layout.astro';
         btnPage.addEventListener('click', () => cambiarPaginaProduccion(i));
         paginationControlsProduccion.appendChild(btnPage);
       }
-      
+
       if (endPage < totalPaginas) {
         if (endPage < totalPaginas - 1) {
           const elipsis = document.createElement('span');
@@ -238,7 +254,7 @@ import Layout from '../layouts/Layout.astro';
           elipsis.textContent = '...';
           paginationControlsProduccion.appendChild(elipsis);
         }
-        
+
         const btnLastPage = document.createElement('button');
         btnLastPage.className = 'px-3 py-1.5 border border-gray-300 rounded hover:bg-gray-100';
         btnLastPage.textContent = totalPaginas;
@@ -246,28 +262,28 @@ import Layout from '../layouts/Layout.astro';
         paginationControlsProduccion.appendChild(btnLastPage);
       }
     }
-    
+
     function cambiarPaginaProduccion(pagina) {
       paginaActual = pagina;
       cargarProducciones();
     }
-    
+
     function cargarProducciones() {
       producciones = JSON.parse(localStorage.getItem('producciones')) || [];
-      
+
       actualizarPaginacionProduccion();
-      
+
       if (producciones.length === 0) {
         listaProducciones.innerHTML = '<p class="text-center text-gray-500 py-4">No hay producciones registradas</p>';
         return;
       }
-      
+
       listaProducciones.innerHTML = '';
-      
+
       const inicio = (paginaActual - 1) * itemsPorPagina;
       const fin = Math.min(inicio + itemsPorPagina, producciones.length);
       const produccionesPagina = producciones.slice(inicio, fin);
-      
+
       produccionesPagina.forEach((prod, i) => {
         const index = inicio + i;
         const empleado = empleadosDisponibles.find(emp => emp.nombre === prod.empleado);
@@ -276,7 +292,7 @@ import Layout from '../layouts/Layout.astro';
         const operacionNombre = operacion ? operacion.nombreOperacion : 'Operación no encontrada';
         const operacionValor = operacion ? operacion.valorOperacion : 0;
         const totalGanado = prod.cantidad * operacionValor;
-        
+
         const produccionItem = document.createElement('div');
         produccionItem.className = 'flex justify-between items-center p-4 border border-gray-200 rounded-lg hover:shadow-md transition';
         produccionItem.innerHTML = `
@@ -299,13 +315,13 @@ import Layout from '../layouts/Layout.astro';
             </button>
           </div>
         `;
-        
+
         const btnEditar = produccionItem.querySelector('.btn-editar-produccion');
         btnEditar.addEventListener('click', () => editarProduccion(index));
-        
+
         const btnEliminar = produccionItem.querySelector('.btn-eliminar-produccion');
         btnEliminar.addEventListener('click', () => confirmarEliminarProduccion(index));
-        
+
         listaProducciones.appendChild(produccionItem);
       });
     }
@@ -319,13 +335,13 @@ import Layout from '../layouts/Layout.astro';
         mostrarModalProduccion('¡Actualizado!', 'La producción ha sido actualizada exitosamente.');
       } else {
         producciones.push(produccion);
-        
+
         const totalPaginas = Math.ceil(producciones.length / itemsPorPagina);
         paginaActual = totalPaginas;
-        
+
         mostrarModalProduccion('¡Registrado!', 'La producción ha sido registrada exitosamente.');
       }
-      
+
       localStorage.setItem('producciones', JSON.stringify(producciones));
       formProduccion.reset();
       cargarProducciones();
@@ -337,11 +353,11 @@ import Layout from '../layouts/Layout.astro';
       const operacion = operacionesDisponibles.find(op => op.nombreOperacion === produccion.operacion);
       const empleadoNombre = empleado ? empleado.nombre : 'Empleado no encontrado';
       const operacionNombre = operacion ? operacion.nombreOperacion : 'Operación no encontrada';
-      
+
       mostrarModalProduccion(
-        'Confirmar eliminación', 
-        `¿Estás seguro de que deseas eliminar la producción de "${empleadoNombre}" para "${operacionNombre}" del ${new Date(produccion.fecha).toLocaleDateString('es-CO')}?`, 
-        true, 
+        'Confirmar eliminación',
+        `¿Estás seguro de que deseas eliminar la producción de "${empleadoNombre}" para "${operacionNombre}" del ${new Date(produccion.fecha).toLocaleDateString('es-CO')}?`,
+        true,
         () => {
           eliminarProduccion(index);
         }
@@ -351,12 +367,12 @@ import Layout from '../layouts/Layout.astro';
     function eliminarProduccion(index) {
       producciones.splice(index, 1);
       localStorage.setItem('producciones', JSON.stringify(producciones));
-      
+
       const totalPaginas = Math.ceil(producciones.length / itemsPorPagina);
       if (paginaActual > totalPaginas && totalPaginas > 0) {
         paginaActual = totalPaginas;
       }
-      
+
       cargarProducciones();
       mostrarModalProduccion('¡Eliminado!', 'La producción ha sido eliminada exitosamente.');
     }
@@ -366,15 +382,15 @@ import Layout from '../layouts/Layout.astro';
       document.getElementById('empleadoProduccion').value = produccion.empleado;
       document.getElementById('operacionProduccion').value = produccion.operacion;
       document.getElementById('cantidadProduccion').value = produccion.cantidad;
-      document.getElementById('fechaProduccion').value = produccion.fecha.split('T')[0]; // Formato YYYY-MM-DD
-      
+      document.getElementById('fechaProduccion').value = produccion.fecha; // Usar la fecha directamente
+
       editandoIndex = index;
       btnRegistrarProduccion.textContent = 'Actualizar Producción';
       btnCancelarProduccion.classList.remove('hidden');
-      
+
       formProduccion.scrollIntoView({ behavior: 'smooth' });
     }
-    
+
     function cancelarEdicionProduccion() {
       formProduccion.reset();
       editandoIndex = -1;
@@ -441,23 +457,23 @@ import Layout from '../layouts/Layout.astro';
         mostrarModalProduccion('Error', 'Por favor, ingresa un empleado, una operación válida, una cantidad positiva y una fecha.');
       }
     });
-    
+
     btnCancelarModalProduccion.addEventListener('click', ocultarModalProduccion);
     btnCancelarProduccion.addEventListener('click', cancelarEdicionProduccion);
-    
+
     btnAnteriorProduccion.addEventListener('click', () => {
       if (paginaActual > 1) {
         cambiarPaginaProduccion(paginaActual - 1);
       }
     });
-    
+
     btnSiguienteProduccion.addEventListener('click', () => {
       const totalPaginas = Math.ceil(producciones.length / itemsPorPagina);
       if (paginaActual < totalPaginas) {
         cambiarPaginaProduccion(paginaActual + 1);
       }
     });
-    
+
     itemsPerPageProduccion.addEventListener('change', (e) => {
       itemsPorPagina = parseInt(e.target.value);
       const itemInicio = (paginaActual - 1) * parseInt(e.target.oldValue || 10) + 1;
