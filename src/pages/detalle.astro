@@ -166,6 +166,12 @@ import Layout from '../layouts/Layout.astro';
       modalGeneralDetalle.classList.add('hidden');
     }
 
+    // Función para formatear fechas manualmente desde YYYY-MM-DD a DD/MM/YYYY
+    function formatearFecha(fechaISO) {
+      const [year, month, day] = fechaISO.split('-');
+      return `${day}/${month}/${year}`;
+    }
+
     // Función para actualizar los controles de paginación
     function actualizarPaginacionDetalle() {
       const totalPaginas = Math.ceil(detalle.length / itemsPorPagina);
@@ -246,8 +252,7 @@ import Layout from '../layouts/Layout.astro';
 
       // Filtrar producciones por empleado y rango de fechas
       const produccionesFiltradas = producciones.filter(prod => {
-        const fechaProduccion = new Date(prod.fecha).toISOString().split('T')[0];
-        return prod.empleado === empleado && fechaProduccion >= fechaInicio && fechaProduccion <= fechaFin;
+        return prod.empleado === empleado && prod.fecha >= fechaInicio && prod.fecha <= fechaFin;
       });
 
       if (produccionesFiltradas.length === 0) {
@@ -258,37 +263,25 @@ import Layout from '../layouts/Layout.astro';
         return;
       }
 
-      // Calcular el detalle por producción (agrupado por fecha)
-      const detallePorFecha = {};
-      produccionesFiltradas.forEach(prod => {
-        const operacion = operaciones.find(op => op.nombreOperacion === prod.operacion);
-        if (operacion) {
-          const fecha = new Date(prod.fecha).toLocaleDateString('es-CO');
-          const totalGanado = prod.cantidad * operacion.valorOperacion;
-          
-          if (!detallePorFecha[fecha]) {
-            detallePorFecha[fecha] = [];
-          }
-          detallePorFecha[fecha].push({
-            operacion: prod.operacion,
-            cantidad: prod.cantidad,
-            totalGanado: totalGanado
-          });
-        }
-      });
-
       // Crear lista de detalle
-      detalle = Object.entries(detallePorFecha).flatMap(([fecha, items]) => {
-        return items.map(item => ({
-          fecha,
-          operacion: item.operacion,
-          cantidad: item.cantidad,
-          totalGanado: item.totalGanado
-        }));
+      detalle = produccionesFiltradas.map(prod => {
+        const operacion = operaciones.find(op => op.nombreOperacion === prod.operacion) || { valorOperacion: 0 };
+        const totalGanado = prod.cantidad * operacion.valorOperacion;
+        const fechaFormateada = formatearFecha(prod.fecha);
+        return {
+          fecha: fechaFormateada,
+          operacion: prod.operacion,
+          cantidad: prod.cantidad,
+          totalGanado: totalGanado
+        };
       });
 
-      // Ordenar por fecha
-      detalle.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+      // Ordenar por fecha (usando el formato original YYYY-MM-DD para consistencia)
+      detalle.sort((a, b) => {
+        const fechaA = a.fecha.split('/').reverse().join('-');
+        const fechaB = b.fecha.split('/').reverse().join('-');
+        return fechaA.localeCompare(fechaB);
+      });
 
       // Actualizar la lista
       actualizarPaginacionDetalle();
@@ -303,7 +296,7 @@ import Layout from '../layouts/Layout.astro';
       const fin = Math.min(inicio + itemsPorPagina, detalle.length);
       const detallePagina = detalle.slice(inicio, fin);
 
-      detallePagina.forEach((item, i) => {
+      detallePagina.forEach((item) => {
         const operacion = operaciones.find(op => op.nombreOperacion === item.operacion) || { nombreOperacion: 'No encontrada', valorOperacion: 0 };
         const detalleItem = document.createElement('div');
         detalleItem.className = 'flex justify-between items-center p-4 border border-gray-200 rounded-lg hover:shadow-md transition';
@@ -341,14 +334,12 @@ import Layout from '../layouts/Layout.astro';
       }
 
       try {
-        // Verificar si jsPDF está disponible
         if (typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined') {
           mostrarModalDetalle('Error', 'No se pudo cargar la biblioteca jsPDF. Por favor, recarga la página e intenta nuevamente.');
           console.error('Error: jsPDF no está disponible');
           return;
         }
 
-        // Crear el documento PDF
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
 
@@ -360,7 +351,7 @@ import Layout from '../layouts/Layout.astro';
         const empleadoInfo = empleados.find(emp => emp.nombre === empleado) || { nombre: empleado, cargo: 'No especificado', documento: 'No disponible' };
         doc.setFontSize(12);
         doc.text(`Empleado: ${empleadoInfo.nombre} - ${empleadoInfo.cargo} (Doc: ${empleadoInfo.documento})`, 105, 30, { align: 'center' });
-        doc.text(`Período: ${new Date(fechaInicio).toLocaleDateString('es-CO')} - ${new Date(fechaFin).toLocaleDateString('es-CO')}`, 105, 35, { align: 'center' });
+        doc.text(`Período: ${formatearFecha(fechaInicio)} - ${formatearFecha(fechaFin)}`, 105, 35, { align: 'center' });
 
         // Tabla de detalle
         const tableData = [
@@ -397,7 +388,7 @@ import Layout from '../layouts/Layout.astro';
         doc.text(`Total General: $${new Intl.NumberFormat('es-CO').format(totalGeneral)} COP`, 105, finalY + 10, { align: 'center' });
 
         // Fecha de emisión
-        doc.text(`Emitido el: ${new Date().toLocaleDateString('es-CO')}`, 105, finalY + 20, { align: 'center' });
+        doc.text(`Emitido el: ${formatearFecha(new Date().toISOString().split('T')[0])}`, 105, finalY + 20, { align: 'center' });
 
         // Descargar el PDF
         doc.save(`Detalle_${empleado}_${fechaInicio}_${fechaFin}.pdf`);
@@ -441,18 +432,15 @@ import Layout from '../layouts/Layout.astro';
       itemsPorPagina = parseInt(itemsPerPageDetalle.value);
       itemsPerPageDetalle.oldValue = itemsPerPageDetalle.value;
       
-      // Establecer fechas predeterminadas
       const hoy = new Date();
       const hace15Dias = new Date(hoy);
       hace15Dias.setDate(hoy.getDate() - 15);
       fechaInicioDetalle.value = hace15Dias.toISOString().split('T')[0];
       fechaFinDetalle.value = hoy.toISOString().split('T')[0];
       
-      // Cargar empleados disponibles
       cargarDatos();
       cargarEmpleadosDisponibles();
       
-      // Verificar que las bibliotecas están cargadas
       if (typeof window.jspdf === 'undefined') {
         console.warn("Advertencia: jsPDF no está cargado correctamente. El botón de descarga de PDF podría no funcionar.");
       }
