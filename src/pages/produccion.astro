@@ -267,6 +267,9 @@ import Layout from '../layouts/Layout.astro';
     function cargarProducciones() {
       producciones = JSON.parse(localStorage.getItem('producciones')) || [];
 
+      // Ordenar producciones por fecha (de más reciente a más antigua)
+      producciones.sort((a, b) => b.fecha.localeCompare(a.fecha));
+
       actualizarPaginacionProduccion();
 
       if (producciones.length === 0) {
@@ -281,7 +284,7 @@ import Layout from '../layouts/Layout.astro';
       const produccionesPagina = producciones.slice(inicio, fin);
 
       produccionesPagina.forEach((prod, i) => {
-        const index = inicio + i;
+        const index = producciones.findIndex(p => p === prod); // Índice original en el array ordenado
         const empleado = empleadosDisponibles.find(emp => emp.nombre === prod.empleado);
         const operacion = operacionesDisponibles.find(op => op.nombreOperacion === prod.operacion);
         const empleadoNombre = empleado ? empleado.nombre : 'Empleado no encontrado';
@@ -334,14 +337,14 @@ import Layout from '../layouts/Layout.astro';
         mostrarModalProduccion('¡Actualizado!', 'La producción ha sido actualizada exitosamente.');
       } else {
         producciones.push(produccion);
-        const totalPaginas = Math.ceil(producciones.length / itemsPorPagina);
-        paginaActual = totalPaginas;
         mostrarModalProduccion('¡Registrado!', 'La producción ha sido registrada exitosamente.');
       }
 
       localStorage.setItem('producciones', JSON.stringify(producciones));
       formProduccion.reset();
       cargarProducciones();
+      // Al guardar, ir a la primera página para mostrar la producción más reciente
+      paginaActual = 1;
     }
 
     function confirmarEliminarProduccion(index) {
@@ -382,7 +385,7 @@ import Layout from '../layouts/Layout.astro';
       document.getElementById('empleadoProduccion').value = produccion.empleado;
       document.getElementById('operacionProduccion').value = produccion.operacion;
       document.getElementById('cantidadProduccion').value = produccion.cantidad;
-      document.getElementById('fechaProduccion').value = produccion.fecha; // Usar la fecha en formato YYYY-MM-DD
+      document.getElementById('fechaProduccion').value = produccion.fecha;
 
       editandoIndex = index;
       btnRegistrarProduccion.textContent = 'Actualizar Producción';
@@ -418,27 +421,50 @@ import Layout from '../layouts/Layout.astro';
       }
 
       const workbook = XLSX.utils.book_new();
+      let totalCantidad = 0;
+      let totalGanado = 0;
+
       const worksheetData = [
         ['Empleado', 'Operación', 'Cantidad', 'Fecha', 'Total Ganado (COP)'],
         ...produccionesFiltradas.map(prod => {
           const empleado = empleadosDisponibles.find(emp => emp.nombre === prod.empleado) || { nombre: 'No encontrado' };
           const operacion = operacionesDisponibles.find(op => op.nombreOperacion === prod.operacion) || { nombreOperacion: 'No encontrada', valorOperacion: 0 };
-          const totalGanado = prod.cantidad * operacion.valorOperacion;
+          const cantidad = Number(prod.cantidad); // Asegurar que sea número
+          const total = cantidad * operacion.valorOperacion;
+          totalCantidad += cantidad;
+          totalGanado += total;
           const [year, month, day] = prod.fecha.split('-');
           const fechaFormateada = `${day}/${month}/${year}`;
           return [
             empleado.nombre,
             operacion.nombreOperacion,
-            prod.cantidad,
+            cantidad, // Guardar como número
             fechaFormateada,
-            new Intl.NumberFormat('es-CO').format(totalGanado)
+            total // Guardar como número
           ];
-        })
+        }),
+        ['', '', totalCantidad, '', totalGanado] // Fila de totales
       ];
 
       const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+
+      // Aplicar formato a las columnas numéricas
+      const range = XLSX.utils.decode_range(worksheet['!ref']);
+      for (let R = 0; R <= range.e.r; R++) {
+        for (let C = 0; C <= range.e.c; C++) {
+          const cellAddress = { c: C, r: R };
+          const cellRef = XLSX.utils.encode_cell(cellAddress);
+          if (!worksheet[cellRef]) continue;
+
+          if (C === 2 || C === 4) { // Columnas Cantidad (C) y Total Ganado (E)
+            worksheet[cellRef].t = 'n'; // Tipo numérico
+            worksheet[cellRef].z = '#,##0'; // Formato con separadores de miles
+          }
+        }
+      }
+
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Producciones');
-      XLSX.writeFile(workbook, 'Producciones_' + new Date().toISOString().split('T')[0] + '.xlsx');
+      XLSX.writeFile(workbook, `Producciones_${fechaInicio}_a_${fechaFin}.xlsx`);
     }
 
     // Event Listeners
@@ -447,7 +473,7 @@ import Layout from '../layouts/Layout.astro';
       const empleado = document.getElementById('empleadoProduccion').value;
       const operacion = document.getElementById('operacionProduccion').value;
       const cantidad = parseInt(document.getElementById('cantidadProduccion').value);
-      const fecha = document.getElementById('fechaProduccion').value; // Guardar como YYYY-MM-DD
+      const fecha = document.getElementById('fechaProduccion').value;
 
       if (empleado && operacion && !isNaN(cantidad) && cantidad > 0 && fecha) {
         guardarProduccion({ empleado, operacion, cantidad, fecha });
