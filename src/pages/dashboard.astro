@@ -1,0 +1,252 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout>
+  <h1 class="text-4xl font-bold mb-8 text-gray-900 text-center">Dashboard</h1>
+
+  <!-- Filtro de fechas para dashboard -->
+  <div class="bg-white p-8 rounded-3xl shadow-2xl max-w-lg mx-auto">
+    <h2 class="text-2xl font-semibold mb-6 text-gray-800 text-center">Filtros de Dashboard</h2>
+    <div class="space-y-4">
+      <div class="flex items-center gap-2">
+        <label for="fechaInicioDashboard" class="text-sm font-medium text-gray-700">Fecha Inicio:</label>
+        <input type="date" id="fechaInicioDashboard" class="px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm" required />
+      </div>
+      <div class="flex items-center gap-2">
+        <label for="fechaFinDashboard" class="text-sm font-medium text-gray-700">Fecha Fin:</label>
+        <input type="date" id="fechaFinDashboard" class="px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm" required />
+      </div>
+      <button id="btnGenerarDashboard" class="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition text-sm font-medium shadow-md hover:shadow-lg">
+        Generar Dashboard
+      </button>
+    </div>
+  </div>
+
+  <!-- Sección de métricas generales -->
+  <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-3xl mx-auto mt-8">
+    <h2 class="text-2xl font-semibold mb-6 text-gray-800">Métricas Generales</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div class="bg-gray-50 p-4 rounded-lg shadow-md">
+        <p class="text-lg font-medium text-gray-800">Empleados Registrados</p>
+        <p class="text-2xl font-bold text-blue-600" id="totalEmpleados">0</p>
+      </div>
+      <div class="bg-gray-50 p-4 rounded-lg shadow-md">
+        <p class="text-lg font-medium text-gray-800">Operaciones Registradas</p>
+        <p class="text-2xl font-bold text-blue-600" id="totalOperaciones">0</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Total de nómina -->
+  <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-3xl mx-auto mt-8">
+    <h2 class="text-2xl font-semibold mb-6 text-gray-800">Total de Nómina</h2>
+    <div class="text-right">
+      <p class="text-lg font-semibold text-gray-800">Total a Pagar: <span id="totalNominaDashboard">$0 COP</span></p>
+    </div>
+  </div>
+
+  <!-- Gráfica de empleados (ganancias) -->
+  <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-3xl mx-auto mt-8">
+    <h2 class="text-2xl font-semibold mb-6 text-gray-800">Ganancias por Empleado</h2>
+    <div class="w-full h-64">
+      <canvas id="graficaEmpleados" class="max-w-full"></canvas>
+    </div>
+  </div>
+
+  <!-- Modal mejorado -->
+  <div id="modalGeneralDashboard" class="fixed inset-0 flex items-center justify-center hidden bg-transparent bg-opacity-30 backdrop-blur-sm transition-all duration-300 z-50">
+    <div class="bg-white p-6 rounded-lg shadow-lg max-w-sm mx-4 transform transition-all duration-300">
+      <h3 class="text-lg font-semibold text-gray-800 mb-4" id="modalTituloDashboard"></h3>
+      <p id="modalMensajeDashboard" class="mb-6 text-gray-600"></p>
+      <div class="flex justify-end gap-3">
+        <button id="btnCancelarModalDashboard" class="py-2 px-4 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition hidden">Cancelar</button>
+        <button id="btnConfirmarModalDashboard" class="bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition">Aceptar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Importar las bibliotecas necesarias -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+
+  <script>
+    // Variables globales
+    let empleados = [];
+    let producciones = [];
+    let operaciones = [];
+    let paginaActual = 1; // No usaremos paginación aquí, pero lo mantenemos por consistencia
+    let itemsPorPagina = 10; // No usado en este caso, pero lo mantenemos por consistencia
+    
+    const fechaInicioDashboard = document.getElementById('fechaInicioDashboard');
+    const fechaFinDashboard = document.getElementById('fechaFinDashboard');
+    const modalGeneralDashboard = document.getElementById('modalGeneralDashboard');
+    const modalTituloDashboard = document.getElementById('modalTituloDashboard');
+    const modalMensajeDashboard = document.getElementById('modalMensajeDashboard');
+    const btnConfirmarModalDashboard = document.getElementById('btnConfirmarModalDashboard');
+    const btnCancelarModalDashboard = document.getElementById('btnCancelarModalDashboard');
+    const btnGenerarDashboard = document.getElementById('btnGenerarDashboard');
+    const totalEmpleados = document.getElementById('totalEmpleados');
+    const totalOperaciones = document.getElementById('totalOperaciones');
+    const totalNominaDashboard = document.getElementById('totalNominaDashboard');
+    
+    // Cargar datos desde localStorage
+    function cargarDatos() {
+      empleados = JSON.parse(localStorage.getItem('empleados')) || [];
+      producciones = JSON.parse(localStorage.getItem('producciones')) || [];
+      operaciones = JSON.parse(localStorage.getItem('operaciones')) || [];
+    }
+
+    function mostrarModalDashboard(titulo, mensaje, confirmar = false, onConfirm = null) {
+      modalTituloDashboard.textContent = titulo;
+      modalMensajeDashboard.textContent = mensaje;
+      
+      if (confirmar) {
+        btnCancelarModalDashboard.classList.remove('hidden');
+        btnConfirmarModalDashboard.textContent = 'Confirmar';
+        
+        const antiguoConfirm = btnConfirmarModalDashboard.onclick;
+        btnConfirmarModalDashboard.onclick = () => {
+          if (onConfirm) onConfirm();
+          ocultarModalDashboard();
+          btnConfirmarModalDashboard.onclick = antiguoConfirm;
+        };
+      } else {
+        btnCancelarModalDashboard.classList.add('hidden');
+        btnConfirmarModalDashboard.textContent = 'Aceptar';
+        btnConfirmarModalDashboard.onclick = ocultarModalDashboard;
+      }
+      
+      modalGeneralDashboard.classList.remove('hidden');
+    }
+
+    function ocultarModalDashboard() {
+      modalGeneralDashboard.classList.add('hidden');
+    }
+
+    function generarDashboard() {
+      const fechaInicio = fechaInicioDashboard.value;
+      const fechaFin = fechaFinDashboard.value;
+
+      if (!fechaInicio || !fechaFin) {
+        mostrarModalDashboard('Error', 'Por favor, selecciona un rango de fechas.');
+        return;
+      }
+
+      cargarDatos();
+
+      // Métricas generales
+      totalEmpleados.textContent = empleados.length;
+      totalOperaciones.textContent = operaciones.length;
+
+      // Filtrar producciones por rango de fechas
+      const produccionesFiltradas = producciones.filter(prod => {
+        const fechaProduccion = new Date(prod.fecha).toISOString().split('T')[0];
+        return fechaProduccion >= fechaInicio && fechaProduccion <= fechaFin;
+      });
+
+      if (produccionesFiltradas.length === 0) {
+        mostrarModalDashboard('Advertencia', 'No hay producciones en el rango de fechas seleccionado.');
+        totalNominaDashboard.textContent = '$0 COP';
+        actualizarGrafica([]);
+        return;
+      }
+
+      // Calcular nómina total
+      const pagosPorEmpleado = {};
+      produccionesFiltradas.forEach(prod => {
+        const operacion = operaciones.find(op => op.nombreOperacion === prod.operacion);
+        if (operacion) {
+          const totalGanado = prod.cantidad * operacion.valorOperacion;
+          if (!pagosPorEmpleado[prod.empleado]) {
+            pagosPorEmpleado[prod.empleado] = 0;
+          }
+          pagosPorEmpleado[prod.empleado] += totalGanado;
+        }
+      });
+
+      const nominaTotal = Object.values(pagosPorEmpleado).reduce((sum, total) => sum + (total || 0), 0);
+      totalNominaDashboard.textContent = `$${new Intl.NumberFormat('es-CO').format(nominaTotal)} COP`;
+
+      // Preparar datos para la gráfica
+      const labels = Object.keys(pagosPorEmpleado).map(empleado => {
+        const emp = empleados.find(e => e.nombre === empleado) || { nombre: empleado };
+        return emp.nombre;
+      });
+      const data = Object.values(pagosPorEmpleado).map(total => total || 0);
+
+      actualizarGrafica({ labels, data });
+    }
+
+    function actualizarGrafica(data) {
+      const ctx = document.getElementById('graficaEmpleados').getContext('2d');
+      if (window.myChart) {
+        window.myChart.destroy();
+      }
+
+      window.myChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: data.labels,
+          datasets: [{
+            label: 'Ganancias (COP)',
+            data: data.data,
+            backgroundColor: 'rgba(59, 130, 246, 0.5)', // Azul claro con opacidad
+            borderColor: 'rgba(59, 130, 246, 1)', // Azul sólido
+            borderWidth: 1
+          }]
+        },
+        options: {
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                callback: function(value) {
+                  return `$${new Intl.NumberFormat('es-CO').format(value)}`;
+                }
+              }
+            }
+          },
+          plugins: {
+            legend: {
+              display: false
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  return `${context.label}: $${new Intl.NumberFormat('es-CO').format(context.raw)} COP`;
+                }
+              }
+            }
+          },
+          responsive: true,
+          maintainAspectRatio: false
+        }
+      });
+    }
+
+    // Event Listeners
+    btnGenerarDashboard.addEventListener('click', generarDashboard);
+    btnCancelarModalDashboard.addEventListener('click', ocultarModalDashboard);
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const hoy = new Date();
+      const hace30Dias = new Date(hoy);
+      hace30Dias.setDate(hoy.getDate() - 30);
+      fechaInicioDashboard.value = hace30Dias.toISOString().split('T')[0];
+      fechaFinDashboard.value = hoy.toISOString().split('T')[0];
+
+      // Verificar que las bibliotecas están cargadas
+      if (typeof Chart === 'undefined') {
+        console.warn("Advertencia: Chart.js no está cargado correctamente. La gráfica podría no funcionar.");
+      }
+      if (typeof window.jspdf === 'undefined') {
+        console.warn("Advertencia: jsPDF no está cargado correctamente. El botón de descarga de PDF podría no funcionar.");
+      }
+
+      cargarDatos();
+      generarDashboard(); // Generar dashboard inicial con fechas predeterminadas
+    });
+  </script>
+</Layout>

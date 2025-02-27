@@ -1,0 +1,354 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout>
+  <h1 class="text-4xl font-bold mb-8 text-gray-900 text-center">Registro de Operaciones</h1>
+
+  <!-- Formulario de registro de operaciones -->
+  <div class="bg-white p-8 rounded-3xl shadow-2xl max-w-lg mx-auto">
+    <h2 class="text-2xl font-semibold mb-6 text-gray-800 text-center">Agregar Nueva Operación</h2>
+    <form id="formOperacion" class="space-y-4">
+      <div>
+        <label for="nombreOperacion" class="block text-sm font-medium text-gray-700">Nombre de la Operación</label>
+        <input type="text" id="nombreOperacion" name="nombreOperacion" class="mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500" required />
+      </div>
+      <div>
+        <label for="valorOperacion" class="block text-sm font-medium text-gray-700">Valor (COP)</label>
+        <input type="number" id="valorOperacion" name="valorOperacion" step="0.01" class="mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500" required />
+      </div>
+      <div class="flex gap-4">
+        <button type="submit" id="btnRegistrarOperacion" class="flex-1 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition">Registrar Operación</button>
+        <button type="button" id="btnCancelarOperacion" class="flex-1 bg-gray-500 text-white py-3 rounded-lg hover:bg-gray-600 transition hidden">Cancelar</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Lista de operaciones con paginación -->
+  <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-3xl mx-auto mt-8">
+    <div class="flex justify-between items-center mb-6">
+      <h2 class="text-2xl font-semibold text-gray-800">Lista de Operaciones</h2>
+      <div class="flex items-center gap-2">
+        <span class="text-sm text-gray-600" id="paginationInfoOperacion">Mostrando 0-0 de 0</span>
+        <select id="itemsPerPageOperacion" class="px-2 py-1 border border-gray-300 rounded text-sm">
+          <option value="5">5 por página</option>
+          <option value="10" selected>10 por página</option>
+          <option value="20">20 por página</option>
+        </select>
+      </div>
+    </div>
+    
+    <div id="listaOperaciones" class="space-y-4 min-h-64"></div>
+    
+    <!-- Controles de paginación -->
+    <div class="flex justify-between items-center mt-6">
+      <div class="text-sm text-gray-600" id="totalInfoOperacion">Total: 0 operaciones</div>
+      <div class="flex items-center gap-2">
+        <button id="btnAnteriorOperacion" class="px-3 py-1.5 border border-gray-300 rounded bg-white text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        <div id="paginationControlsOperacion" class="flex items-center gap-1"></div>
+        <button id="btnSiguienteOperacion" class="px-3 py-1.5 border border-gray-300 rounded bg-white text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal mejorado -->
+  <div id="modalGeneralOperacion" class="fixed inset-0 flex items-center justify-center hidden bg-transparent bg-opacity-30 backdrop-blur-sm transition-all duration-300">
+    <div class="bg-white p-6 rounded-lg shadow-lg max-w-sm mx-4 transform transition-all duration-300">
+      <h3 class="text-lg font-semibold text-gray-800 mb-4" id="modalTituloOperacion"></h3>
+      <p id="modalMensajeOperacion" class="mb-6 text-gray-600"></p>
+      <div class="flex justify-end gap-3">
+        <button id="btnCancelarModalOperacion" class="py-2 px-4 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition hidden">Cancelar</button>
+        <button id="btnConfirmarModalOperacion" class="bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition">Aceptar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Variables globales
+    let operaciones = [];
+    let editandoIndex = -1;
+    let paginaActual = 1;
+    let itemsPorPagina = 10;
+    
+    const formOperacion = document.getElementById('formOperacion');
+    const listaOperaciones = document.getElementById('listaOperaciones');
+    const modalGeneralOperacion = document.getElementById('modalGeneralOperacion');
+    const modalTituloOperacion = document.getElementById('modalTituloOperacion');
+    const modalMensajeOperacion = document.getElementById('modalMensajeOperacion');
+    const btnConfirmarModalOperacion = document.getElementById('btnConfirmarModalOperacion');
+    const btnCancelarModalOperacion = document.getElementById('btnCancelarModalOperacion');
+    const btnRegistrarOperacion = document.getElementById('btnRegistrarOperacion');
+    const btnCancelarOperacion = document.getElementById('btnCancelarOperacion');
+    const btnAnteriorOperacion = document.getElementById('btnAnteriorOperacion');
+    const btnSiguienteOperacion = document.getElementById('btnSiguienteOperacion');
+    const paginationControlsOperacion = document.getElementById('paginationControlsOperacion');
+    const paginationInfoOperacion = document.getElementById('paginationInfoOperacion');
+    const totalInfoOperacion = document.getElementById('totalInfoOperacion');
+    const itemsPerPageOperacion = document.getElementById('itemsPerPageOperacion');
+    
+    // Función para normalizar el nombre de la operación (opcional, similar a normalizarNombre)
+    function normalizarNombreOperacion(nombre) {
+      return nombre.trim().split(' ').map(palabra => 
+        palabra.charAt(0).toUpperCase() + palabra.slice(1).toLowerCase()
+      ).join(' ');
+    }
+
+    function mostrarModalOperacion(titulo, mensaje, confirmar = false, onConfirm = null) {
+      modalTituloOperacion.textContent = titulo;
+      modalMensajeOperacion.textContent = mensaje;
+      
+      if (confirmar) {
+        btnCancelarModalOperacion.classList.remove('hidden');
+        btnConfirmarModalOperacion.textContent = 'Confirmar';
+        
+        const antiguoConfirm = btnConfirmarModalOperacion.onclick;
+        btnConfirmarModalOperacion.onclick = () => {
+          if (onConfirm) onConfirm();
+          ocultarModalOperacion();
+          btnConfirmarModalOperacion.onclick = antiguoConfirm;
+        };
+      } else {
+        btnCancelarModalOperacion.classList.add('hidden');
+        btnConfirmarModalOperacion.textContent = 'Aceptar';
+        btnConfirmarModalOperacion.onclick = ocultarModalOperacion;
+      }
+      
+      modalGeneralOperacion.classList.remove('hidden');
+    }
+
+    function ocultarModalOperacion() {
+      modalGeneralOperacion.classList.add('hidden');
+    }
+
+    // Función para actualizar los controles de paginación
+    function actualizarPaginacionOperacion() {
+      const totalPaginas = Math.ceil(operaciones.length / itemsPorPagina);
+      
+      const inicio = (paginaActual - 1) * itemsPorPagina + 1;
+      const fin = Math.min(paginaActual * itemsPorPagina, operaciones.length);
+      paginationInfoOperacion.textContent = `Mostrando ${operaciones.length > 0 ? inicio : 0}-${fin} de ${operaciones.length}`;
+      totalInfoOperacion.textContent = `Total: ${operaciones.length} operación${operaciones.length !== 1 ? 'es' : ''}`;
+      
+      btnAnteriorOperacion.disabled = paginaActual <= 1;
+      btnSiguienteOperacion.disabled = paginaActual >= totalPaginas;
+      
+      paginationControlsOperacion.innerHTML = '';
+      
+      const maxPagesToShow = 5;
+      let startPage = Math.max(1, paginaActual - Math.floor(maxPagesToShow / 2));
+      let endPage = Math.min(totalPaginas, startPage + maxPagesToShow - 1);
+      
+      if (endPage - startPage + 1 < maxPagesToShow && startPage > 1) {
+        startPage = Math.max(1, endPage - maxPagesToShow + 1);
+      }
+      
+      if (startPage > 1) {
+        const btnFirstPage = document.createElement('button');
+        btnFirstPage.className = 'px-3 py-1.5 border border-gray-300 rounded hover:bg-gray-100';
+        btnFirstPage.textContent = '1';
+        btnFirstPage.addEventListener('click', () => cambiarPaginaOperacion(1));
+        paginationControlsOperacion.appendChild(btnFirstPage);
+        
+        if (startPage > 2) {
+          const elipsis = document.createElement('span');
+          elipsis.className = 'px-1';
+          elipsis.textContent = '...';
+          paginationControlsOperacion.appendChild(elipsis);
+        }
+      }
+      
+      for (let i = startPage; i <= endPage; i++) {
+        const btnPage = document.createElement('button');
+        btnPage.className = `px-3 py-1.5 border rounded ${i === paginaActual ? 'bg-blue-600 text-white' : 'border-gray-300 hover:bg-gray-100'}`;
+        btnPage.textContent = i;
+        btnPage.addEventListener('click', () => cambiarPaginaOperacion(i));
+        paginationControlsOperacion.appendChild(btnPage);
+      }
+      
+      if (endPage < totalPaginas) {
+        if (endPage < totalPaginas - 1) {
+          const elipsis = document.createElement('span');
+          elipsis.className = 'px-1';
+          elipsis.textContent = '...';
+          paginationControlsOperacion.appendChild(elipsis);
+        }
+        
+        const btnLastPage = document.createElement('button');
+        btnLastPage.className = 'px-3 py-1.5 border border-gray-300 rounded hover:bg-gray-100';
+        btnLastPage.textContent = totalPaginas;
+        btnLastPage.addEventListener('click', () => cambiarPaginaOperacion(totalPaginas));
+        paginationControlsOperacion.appendChild(btnLastPage);
+      }
+    }
+    
+    function cambiarPaginaOperacion(pagina) {
+      paginaActual = pagina;
+      cargarOperaciones();
+    }
+    
+    function cargarOperaciones() {
+      operaciones = JSON.parse(localStorage.getItem('operaciones')) || [];
+      
+      actualizarPaginacionOperacion();
+      
+      if (operaciones.length === 0) {
+        listaOperaciones.innerHTML = '<p class="text-center text-gray-500 py-4">No hay operaciones registradas</p>';
+        return;
+      }
+      
+      listaOperaciones.innerHTML = '';
+      
+      const inicio = (paginaActual - 1) * itemsPorPagina;
+      const fin = Math.min(inicio + itemsPorPagina, operaciones.length);
+      const operacionesPagina = operaciones.slice(inicio, fin);
+      
+      operacionesPagina.forEach((op, i) => {
+        const index = inicio + i;
+        const operacionItem = document.createElement('div');
+        operacionItem.className = 'flex justify-between items-center p-4 border border-gray-200 rounded-lg hover:shadow-md transition';
+        operacionItem.innerHTML = `
+          <div>
+            <p class="text-gray-800 font-medium">${op.nombreOperacion} - $${new Intl.NumberFormat('es-CO').format(op.valorOperacion)} COP</p>
+          </div>
+          <div class="flex space-x-2">
+            <button class="btn-editar-operacion flex items-center justify-center rounded-lg px-3 py-1.5 bg-blue-100 text-blue-700 hover:bg-blue-200 transition" data-index="${index}">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              Editar
+            </button>
+            <button class="btn-eliminar-operacion flex items-center justify-center rounded-lg px-3 py-1.5 bg-red-100 text-red-700 hover:bg-red-200 transition" data-index="${index}">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              Eliminar
+            </button>
+          </div>
+        `;
+        
+        const btnEditar = operacionItem.querySelector('.btn-editar-operacion');
+        btnEditar.addEventListener('click', () => editarOperacion(index));
+        
+        const btnEliminar = operacionItem.querySelector('.btn-eliminar-operacion');
+        btnEliminar.addEventListener('click', () => confirmarEliminarOperacion(index));
+        
+        listaOperaciones.appendChild(operacionItem);
+      });
+    }
+
+    function guardarOperacion(operacion) {
+      if (editandoIndex >= 0) {
+        operaciones[editandoIndex] = operacion;
+        editandoIndex = -1;
+        btnRegistrarOperacion.textContent = 'Registrar Operación';
+        btnCancelarOperacion.classList.add('hidden');
+        mostrarModalOperacion('¡Actualizado!', 'La operación ha sido actualizada exitosamente.');
+      } else {
+        operaciones.push(operacion);
+        
+        const totalPaginas = Math.ceil(operaciones.length / itemsPorPagina);
+        paginaActual = totalPaginas;
+        
+        mostrarModalOperacion('¡Registrado!', 'La operación ha sido registrada exitosamente.');
+      }
+      
+      localStorage.setItem('operaciones', JSON.stringify(operaciones));
+      formOperacion.reset();
+      cargarOperaciones();
+    }
+
+    function confirmarEliminarOperacion(index) {
+      const operacion = operaciones[index];
+      mostrarModalOperacion(
+        'Confirmar eliminación', 
+        `¿Estás seguro de que deseas eliminar la operación "${operacion.nombreOperacion}"?`, 
+        true, 
+        () => {
+          eliminarOperacion(index);
+        }
+      );
+    }
+
+    function eliminarOperacion(index) {
+      operaciones.splice(index, 1);
+      localStorage.setItem('operaciones', JSON.stringify(operaciones));
+      
+      const totalPaginas = Math.ceil(operaciones.length / itemsPorPagina);
+      if (paginaActual > totalPaginas && totalPaginas > 0) {
+        paginaActual = totalPaginas;
+      }
+      
+      cargarOperaciones();
+      mostrarModalOperacion('¡Eliminado!', 'La operación ha sido eliminada exitosamente.');
+    }
+
+    function editarOperacion(index) {
+      const operacion = operaciones[index];
+      document.getElementById('nombreOperacion').value = operacion.nombreOperacion;
+      document.getElementById('valorOperacion').value = operacion.valorOperacion;
+      
+      editandoIndex = index;
+      btnRegistrarOperacion.textContent = 'Actualizar Operación';
+      btnCancelarOperacion.classList.remove('hidden');
+      
+      formOperacion.scrollIntoView({ behavior: 'smooth' });
+    }
+    
+    function cancelarEdicionOperacion() {
+      formOperacion.reset();
+      editandoIndex = -1;
+      btnRegistrarOperacion.textContent = 'Registrar Operación';
+      btnCancelarOperacion.classList.add('hidden');
+    }
+
+    // Event Listeners
+    formOperacion.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const nombreOperacion = normalizarNombreOperacion(document.getElementById('nombreOperacion').value);
+      const valorOperacion = parseFloat(document.getElementById('valorOperacion').value);
+
+      if (nombreOperacion && !isNaN(valorOperacion) && valorOperacion >= 0) {
+        guardarOperacion({ nombreOperacion, valorOperacion });
+      } else {
+        mostrarModalOperacion('Error', 'Por favor, ingresa un nombre válido y un valor numérico positivo.');
+      }
+    });
+    
+    btnCancelarModalOperacion.addEventListener('click', ocultarModalOperacion);
+    btnCancelarOperacion.addEventListener('click', cancelarEdicionOperacion);
+    
+    btnAnteriorOperacion.addEventListener('click', () => {
+      if (paginaActual > 1) {
+        cambiarPaginaOperacion(paginaActual - 1);
+      }
+    });
+    
+    btnSiguienteOperacion.addEventListener('click', () => {
+      const totalPaginas = Math.ceil(operaciones.length / itemsPorPagina);
+      if (paginaActual < totalPaginas) {
+        cambiarPaginaOperacion(paginaActual + 1);
+      }
+    });
+    
+    itemsPerPageOperacion.addEventListener('change', (e) => {
+      itemsPorPagina = parseInt(e.target.value);
+      const itemInicio = (paginaActual - 1) * parseInt(e.target.oldValue || 10) + 1;
+      paginaActual = Math.ceil(itemInicio / itemsPorPagina);
+      paginaActual = Math.max(1, paginaActual);
+      cargarOperaciones();
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+      itemsPorPagina = parseInt(itemsPerPageOperacion.value);
+      cargarOperaciones();
+    });
+  </script>
+</Layout>

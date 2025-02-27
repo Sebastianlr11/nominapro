@@ -1,0 +1,482 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout>
+  <h1 class="text-4xl font-bold mb-8 text-gray-900 text-center">Registro de Producción</h1>
+
+  <!-- Formulario de registro de producción -->
+  <div class="bg-white p-8 rounded-3xl shadow-2xl max-w-lg mx-auto">
+    <h2 class="text-2xl font-semibold mb-6 text-gray-800 text-center">Agregar Nueva Producción</h2>
+    <form id="formProduccion" class="space-y-4">
+      <div>
+        <label for="empleadoProduccion" class="block text-sm font-medium text-gray-700">Empleado</label>
+        <select id="empleadoProduccion" name="empleadoProduccion" class="mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500" required>
+          <option value="">Seleccione un empleado</option>
+        </select>
+      </div>
+      <div>
+        <label for="operacionProduccion" class="block text-sm font-medium text-gray-700">Operación</label>
+        <select id="operacionProduccion" name="operacionProduccion" class="mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500" required>
+          <option value="">Seleccione una operación</option>
+        </select>
+      </div>
+      <div>
+        <label for="cantidadProduccion" class="block text-sm font-medium text-gray-700">Cantidad Producida</label>
+        <input type="number" id="cantidadProduccion" name="cantidadProduccion" step="1" class="mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500" required />
+      </div>
+      <div>
+        <label for="fechaProduccion" class="block text-sm font-medium text-gray-700">Fecha</label>
+        <input type="date" id="fechaProduccion" name="fechaProduccion" class="mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500" required />
+      </div>
+      <div class="flex gap-4">
+        <button type="submit" id="btnRegistrarProduccion" class="flex-1 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition">Registrar Producción</button>
+        <button type="button" id="btnCancelarProduccion" class="flex-1 bg-gray-500 text-white py-3 rounded-lg hover:bg-gray-600 transition hidden">Cancelar</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Lista de producciones con paginación y filtro de descarga -->
+  <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-3xl mx-auto mt-8">
+    <div class="flex justify-between items-center mb-6">
+      <h2 class="text-2xl font-semibold text-gray-800">Lista de Producciones</h2>
+      <div class="flex items-center gap-2">
+        <span class="text-sm text-gray-600" id="paginationInfoProduccion">Mostrando 0-0 de 0</span>
+        <select id="itemsPerPageProduccion" class="px-2 py-1 border border-gray-300 rounded text-sm">
+          <option value="5">5 por página</option>
+          <option value="10" selected>10 por página</option>
+          <option value="20">20 por página</option>
+        </select>
+      </div>
+    </div>
+    
+    <div id="listaProducciones" class="space-y-4 min-h-64"></div>
+    
+    <!-- Filtro de fechas para descarga y botón de descarga -->
+    <div class="mt-6 flex flex-col sm:flex-row gap-4 items-center">
+      <div class="flex items-center gap-2">
+        <label for="fechaInicioDescarga" class="text-sm font-medium text-gray-700">Fecha Inicio:</label>
+        <input type="date" id="fechaInicioDescarga" class="px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm" />
+      </div>
+      <div class="flex items-center gap-2">
+        <label for="fechaFinDescarga" class="text-sm font-medium text-gray-700">Fecha Fin:</label>
+        <input type="date" id="fechaFinDescarga" class="px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm" />
+      </div>
+      <button id="btnDescargarExcel" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium flex items-center gap-2 shadow-md hover:shadow-lg">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+        </svg>
+        Descargar Excel
+      </button>
+    </div>
+    
+    <!-- Controles de paginación -->
+    <div class="flex justify-between items-center mt-6">
+      <div class="text-sm text-gray-600" id="totalInfoProduccion">Total: 0 producciones</div>
+      <div class="flex items-center gap-2">
+        <button id="btnAnteriorProduccion" class="px-3 py-1.5 border border-gray-300 rounded bg-white text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        <div id="paginationControlsProduccion" class="flex items-center gap-1"></div>
+        <button id="btnSiguienteProduccion" class="px-3 py-1.5 border border-gray-300 rounded bg-white text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal mejorado -->
+  <div id="modalGeneralProduccion" class="fixed inset-0 flex items-center justify-center hidden bg-transparent bg-opacity-30 backdrop-blur-sm transition-all duration-300">
+    <div class="bg-white p-6 rounded-lg shadow-lg max-w-sm mx-4 transform transition-all duration-300">
+      <h3 class="text-lg font-semibold text-gray-800 mb-4" id="modalTituloProduccion"></h3>
+      <p id="modalMensajeProduccion" class="mb-6 text-gray-600"></p>
+      <div class="flex justify-end gap-3">
+        <button id="btnCancelarModalProduccion" class="py-2 px-4 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition hidden">Cancelar</button>
+        <button id="btnConfirmarModalProduccion" class="bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition">Aceptar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Variables globales
+    let producciones = [];
+    let empleadosDisponibles = [];
+    let operacionesDisponibles = [];
+    let editandoIndex = -1;
+    let paginaActual = 1;
+    let itemsPorPagina = 10;
+    
+    const formProduccion = document.getElementById('formProduccion');
+    const listaProducciones = document.getElementById('listaProducciones');
+    const modalGeneralProduccion = document.getElementById('modalGeneralProduccion');
+    const modalTituloProduccion = document.getElementById('modalTituloProduccion');
+    const modalMensajeProduccion = document.getElementById('modalMensajeProduccion');
+    const btnConfirmarModalProduccion = document.getElementById('btnConfirmarModalProduccion');
+    const btnCancelarModalProduccion = document.getElementById('btnCancelarModalProduccion');
+    const btnRegistrarProduccion = document.getElementById('btnRegistrarProduccion');
+    const btnCancelarProduccion = document.getElementById('btnCancelarProduccion');
+    const btnAnteriorProduccion = document.getElementById('btnAnteriorProduccion');
+    const btnSiguienteProduccion = document.getElementById('btnSiguienteProduccion');
+    const paginationControlsProduccion = document.getElementById('paginationControlsProduccion');
+    const paginationInfoProduccion = document.getElementById('paginationInfoProduccion');
+    const totalInfoProduccion = document.getElementById('totalInfoProduccion');
+    const itemsPerPageProduccion = document.getElementById('itemsPerPageProduccion');
+    const empleadoSelect = document.getElementById('empleadoProduccion');
+    const operacionSelect = document.getElementById('operacionProduccion');
+    const fechaInicioDescarga = document.getElementById('fechaInicioDescarga');
+    const fechaFinDescarga = document.getElementById('fechaFinDescarga');
+    const btnDescargarExcel = document.getElementById('btnDescargarExcel');
+    
+    // Cargar empleados y operaciones desde localStorage para llenar los selects
+    function cargarEmpleadosDisponibles() {
+      empleadosDisponibles = JSON.parse(localStorage.getItem('empleados')) || [];
+      empleadoSelect.innerHTML = '<option value="">Seleccione un empleado</option>';
+      
+      empleadosDisponibles.forEach(emp => {
+        const option = document.createElement('option');
+        option.value = emp.nombre; // Usamos el nombre como valor para identificar al empleado
+        option.textContent = `${emp.nombre} - ${emp.cargo} (Doc: ${emp.documento})`;
+        empleadoSelect.appendChild(option);
+      });
+    }
+
+    function cargarOperacionesDisponibles() {
+      operacionesDisponibles = JSON.parse(localStorage.getItem('operaciones')) || [];
+      operacionSelect.innerHTML = '<option value="">Seleccione una operación</option>';
+      
+      operacionesDisponibles.forEach(op => {
+        const option = document.createElement('option');
+        option.value = op.nombreOperacion;
+        option.textContent = `${op.nombreOperacion} - $${new Intl.NumberFormat('es-CO').format(op.valorOperacion)} COP`;
+        operacionSelect.appendChild(option);
+      });
+    }
+
+    function mostrarModalProduccion(titulo, mensaje, confirmar = false, onConfirm = null) {
+      modalTituloProduccion.textContent = titulo;
+      modalMensajeProduccion.textContent = mensaje;
+      
+      if (confirmar) {
+        btnCancelarModalProduccion.classList.remove('hidden');
+        btnConfirmarModalProduccion.textContent = 'Confirmar';
+        
+        const antiguoConfirm = btnConfirmarModalProduccion.onclick;
+        btnConfirmarModalProduccion.onclick = () => {
+          if (onConfirm) onConfirm();
+          ocultarModalProduccion();
+          btnConfirmarModalProduccion.onclick = antiguoConfirm;
+        };
+      } else {
+        btnCancelarModalProduccion.classList.add('hidden');
+        btnConfirmarModalProduccion.textContent = 'Aceptar';
+        btnConfirmarModalProduccion.onclick = ocultarModalProduccion;
+      }
+      
+      modalGeneralProduccion.classList.remove('hidden');
+    }
+
+    function ocultarModalProduccion() {
+      modalGeneralProduccion.classList.add('hidden');
+    }
+
+    // Función para actualizar los controles de paginación
+    function actualizarPaginacionProduccion() {
+      const totalPaginas = Math.ceil(producciones.length / itemsPorPagina);
+      
+      const inicio = (paginaActual - 1) * itemsPorPagina + 1;
+      const fin = Math.min(paginaActual * itemsPorPagina, producciones.length);
+      paginationInfoProduccion.textContent = `Mostrando ${producciones.length > 0 ? inicio : 0}-${fin} de ${producciones.length}`;
+      totalInfoProduccion.textContent = `Total: ${producciones.length} producción${producciones.length !== 1 ? 'es' : ''}`;
+      
+      btnAnteriorProduccion.disabled = paginaActual <= 1;
+      btnSiguienteProduccion.disabled = paginaActual >= totalPaginas;
+      
+      paginationControlsProduccion.innerHTML = '';
+      
+      const maxPagesToShow = 5;
+      let startPage = Math.max(1, paginaActual - Math.floor(maxPagesToShow / 2));
+      let endPage = Math.min(totalPaginas, startPage + maxPagesToShow - 1);
+      
+      if (endPage - startPage + 1 < maxPagesToShow && startPage > 1) {
+        startPage = Math.max(1, endPage - maxPagesToShow + 1);
+      }
+      
+      if (startPage > 1) {
+        const btnFirstPage = document.createElement('button');
+        btnFirstPage.className = 'px-3 py-1.5 border border-gray-300 rounded hover:bg-gray-100';
+        btnFirstPage.textContent = '1';
+        btnFirstPage.addEventListener('click', () => cambiarPaginaProduccion(1));
+        paginationControlsProduccion.appendChild(btnFirstPage);
+        
+        if (startPage > 2) {
+          const elipsis = document.createElement('span');
+          elipsis.className = 'px-1';
+          elipsis.textContent = '...';
+          paginationControlsProduccion.appendChild(elipsis);
+        }
+      }
+      
+      for (let i = startPage; i <= endPage; i++) {
+        const btnPage = document.createElement('button');
+        btnPage.className = `px-3 py-1.5 border rounded ${i === paginaActual ? 'bg-blue-600 text-white' : 'border-gray-300 hover:bg-gray-100'}`;
+        btnPage.textContent = i;
+        btnPage.addEventListener('click', () => cambiarPaginaProduccion(i));
+        paginationControlsProduccion.appendChild(btnPage);
+      }
+      
+      if (endPage < totalPaginas) {
+        if (endPage < totalPaginas - 1) {
+          const elipsis = document.createElement('span');
+          elipsis.className = 'px-1';
+          elipsis.textContent = '...';
+          paginationControlsProduccion.appendChild(elipsis);
+        }
+        
+        const btnLastPage = document.createElement('button');
+        btnLastPage.className = 'px-3 py-1.5 border border-gray-300 rounded hover:bg-gray-100';
+        btnLastPage.textContent = totalPaginas;
+        btnLastPage.addEventListener('click', () => cambiarPaginaProduccion(totalPaginas));
+        paginationControlsProduccion.appendChild(btnLastPage);
+      }
+    }
+    
+    function cambiarPaginaProduccion(pagina) {
+      paginaActual = pagina;
+      cargarProducciones();
+    }
+    
+    function cargarProducciones() {
+      producciones = JSON.parse(localStorage.getItem('producciones')) || [];
+      
+      actualizarPaginacionProduccion();
+      
+      if (producciones.length === 0) {
+        listaProducciones.innerHTML = '<p class="text-center text-gray-500 py-4">No hay producciones registradas</p>';
+        return;
+      }
+      
+      listaProducciones.innerHTML = '';
+      
+      const inicio = (paginaActual - 1) * itemsPorPagina;
+      const fin = Math.min(inicio + itemsPorPagina, producciones.length);
+      const produccionesPagina = producciones.slice(inicio, fin);
+      
+      produccionesPagina.forEach((prod, i) => {
+        const index = inicio + i;
+        const empleado = empleadosDisponibles.find(emp => emp.nombre === prod.empleado);
+        const operacion = operacionesDisponibles.find(op => op.nombreOperacion === prod.operacion);
+        const empleadoNombre = empleado ? empleado.nombre : 'Empleado no encontrado';
+        const operacionNombre = operacion ? operacion.nombreOperacion : 'Operación no encontrada';
+        const operacionValor = operacion ? operacion.valorOperacion : 0;
+        const totalGanado = prod.cantidad * operacionValor;
+        
+        const produccionItem = document.createElement('div');
+        produccionItem.className = 'flex justify-between items-center p-4 border border-gray-200 rounded-lg hover:shadow-md transition';
+        produccionItem.innerHTML = `
+          <div>
+            <p class="text-gray-800 font-medium">${empleadoNombre} - ${operacionNombre} - ${prod.cantidad} unidades</p>
+            <p class="text-sm text-gray-600">Fecha: ${new Date(prod.fecha).toLocaleDateString('es-CO')} | Total ganado: $${new Intl.NumberFormat('es-CO').format(totalGanado)} COP</p>
+          </div>
+          <div class="flex space-x-2">
+            <button class="btn-editar-produccion flex items-center justify-center rounded-lg px-3 py-1.5 bg-blue-100 text-blue-700 hover:bg-blue-200 transition" data-index="${index}">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              Editar
+            </button>
+            <button class="btn-eliminar-produccion flex items-center justify-center rounded-lg px-3 py-1.5 bg-red-100 text-red-700 hover:bg-red-200 transition" data-index="${index}">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              Eliminar
+            </button>
+          </div>
+        `;
+        
+        const btnEditar = produccionItem.querySelector('.btn-editar-produccion');
+        btnEditar.addEventListener('click', () => editarProduccion(index));
+        
+        const btnEliminar = produccionItem.querySelector('.btn-eliminar-produccion');
+        btnEliminar.addEventListener('click', () => confirmarEliminarProduccion(index));
+        
+        listaProducciones.appendChild(produccionItem);
+      });
+    }
+
+    function guardarProduccion(produccion) {
+      if (editandoIndex >= 0) {
+        producciones[editandoIndex] = produccion;
+        editandoIndex = -1;
+        btnRegistrarProduccion.textContent = 'Registrar Producción';
+        btnCancelarProduccion.classList.add('hidden');
+        mostrarModalProduccion('¡Actualizado!', 'La producción ha sido actualizada exitosamente.');
+      } else {
+        producciones.push(produccion);
+        
+        const totalPaginas = Math.ceil(producciones.length / itemsPorPagina);
+        paginaActual = totalPaginas;
+        
+        mostrarModalProduccion('¡Registrado!', 'La producción ha sido registrada exitosamente.');
+      }
+      
+      localStorage.setItem('producciones', JSON.stringify(producciones));
+      formProduccion.reset();
+      cargarProducciones();
+    }
+
+    function confirmarEliminarProduccion(index) {
+      const produccion = producciones[index];
+      const empleado = empleadosDisponibles.find(emp => emp.nombre === produccion.empleado);
+      const operacion = operacionesDisponibles.find(op => op.nombreOperacion === produccion.operacion);
+      const empleadoNombre = empleado ? empleado.nombre : 'Empleado no encontrado';
+      const operacionNombre = operacion ? operacion.nombreOperacion : 'Operación no encontrada';
+      
+      mostrarModalProduccion(
+        'Confirmar eliminación', 
+        `¿Estás seguro de que deseas eliminar la producción de "${empleadoNombre}" para "${operacionNombre}" del ${new Date(produccion.fecha).toLocaleDateString('es-CO')}?`, 
+        true, 
+        () => {
+          eliminarProduccion(index);
+        }
+      );
+    }
+
+    function eliminarProduccion(index) {
+      producciones.splice(index, 1);
+      localStorage.setItem('producciones', JSON.stringify(producciones));
+      
+      const totalPaginas = Math.ceil(producciones.length / itemsPorPagina);
+      if (paginaActual > totalPaginas && totalPaginas > 0) {
+        paginaActual = totalPaginas;
+      }
+      
+      cargarProducciones();
+      mostrarModalProduccion('¡Eliminado!', 'La producción ha sido eliminada exitosamente.');
+    }
+
+    function editarProduccion(index) {
+      const produccion = producciones[index];
+      document.getElementById('empleadoProduccion').value = produccion.empleado;
+      document.getElementById('operacionProduccion').value = produccion.operacion;
+      document.getElementById('cantidadProduccion').value = produccion.cantidad;
+      document.getElementById('fechaProduccion').value = produccion.fecha.split('T')[0]; // Formato YYYY-MM-DD
+      
+      editandoIndex = index;
+      btnRegistrarProduccion.textContent = 'Actualizar Producción';
+      btnCancelarProduccion.classList.remove('hidden');
+      
+      formProduccion.scrollIntoView({ behavior: 'smooth' });
+    }
+    
+    function cancelarEdicionProduccion() {
+      formProduccion.reset();
+      editandoIndex = -1;
+      btnRegistrarProduccion.textContent = 'Registrar Producción';
+      btnCancelarProduccion.classList.add('hidden');
+    }
+
+    // Función para descargar Excel con filtro por rango de fechas
+    function descargarExcel() {
+      const fechaInicio = fechaInicioDescarga.value;
+      const fechaFin = fechaFinDescarga.value;
+
+      if (!fechaInicio || !fechaFin) {
+        mostrarModalProduccion('Error', 'Por favor, selecciona un rango de fechas.');
+        return;
+      }
+
+      const produccionesFiltradas = producciones.filter(prod => {
+        const fechaProduccion = new Date(prod.fecha).toISOString().split('T')[0];
+        return fechaProduccion >= fechaInicio && fechaProduccion <= fechaFin;
+      });
+
+      if (produccionesFiltradas.length === 0) {
+        mostrarModalProduccion('Advertencia', 'No hay producciones en el rango de fechas seleccionado.');
+        return;
+      }
+
+      // Crear un libro de Excel con SheetJS (asumimos que tienes la biblioteca cargada)
+      const workbook = XLSX.utils.book_new();
+      const worksheetData = [
+        ['Empleado', 'Operación', 'Cantidad', 'Fecha', 'Total Ganado (COP)'],
+        ...produccionesFiltradas.map(prod => {
+          const empleado = empleadosDisponibles.find(emp => emp.nombre === prod.empleado) || { nombre: 'No encontrado' };
+          const operacion = operacionesDisponibles.find(op => op.nombreOperacion === prod.operacion) || { nombreOperacion: 'No encontrada', valorOperacion: 0 };
+          const totalGanado = prod.cantidad * operacion.valorOperacion;
+          return [
+            empleado.nombre,
+            operacion.nombreOperacion,
+            prod.cantidad,
+            new Date(prod.fecha).toLocaleDateString('es-CO'),
+            new Intl.NumberFormat('es-CO').format(totalGanado)
+          ];
+        })
+      ];
+
+      const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Producciones');
+
+      // Descargar el archivo
+      XLSX.writeFile(workbook, 'Producciones_' + new Date().toISOString().split('T')[0] + '.xlsx');
+    }
+
+    // Event Listeners
+    formProduccion.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const empleado = document.getElementById('empleadoProduccion').value;
+      const operacion = document.getElementById('operacionProduccion').value;
+      const cantidad = parseInt(document.getElementById('cantidadProduccion').value);
+      const fecha = document.getElementById('fechaProduccion').value;
+
+      if (empleado && operacion && !isNaN(cantidad) && cantidad > 0 && fecha) {
+        guardarProduccion({ empleado, operacion, cantidad, fecha });
+      } else {
+        mostrarModalProduccion('Error', 'Por favor, ingresa un empleado, una operación válida, una cantidad positiva y una fecha.');
+      }
+    });
+    
+    btnCancelarModalProduccion.addEventListener('click', ocultarModalProduccion);
+    btnCancelarProduccion.addEventListener('click', cancelarEdicionProduccion);
+    
+    btnAnteriorProduccion.addEventListener('click', () => {
+      if (paginaActual > 1) {
+        cambiarPaginaProduccion(paginaActual - 1);
+      }
+    });
+    
+    btnSiguienteProduccion.addEventListener('click', () => {
+      const totalPaginas = Math.ceil(producciones.length / itemsPorPagina);
+      if (paginaActual < totalPaginas) {
+        cambiarPaginaProduccion(paginaActual + 1);
+      }
+    });
+    
+    itemsPerPageProduccion.addEventListener('change', (e) => {
+      itemsPorPagina = parseInt(e.target.value);
+      const itemInicio = (paginaActual - 1) * parseInt(e.target.oldValue || 10) + 1;
+      paginaActual = Math.ceil(itemInicio / itemsPorPagina);
+      paginaActual = Math.max(1, paginaActual);
+      cargarProducciones();
+    });
+
+    btnDescargarExcel.addEventListener('click', descargarExcel);
+
+    document.addEventListener('DOMContentLoaded', () => {
+      itemsPorPagina = parseInt(itemsPerPageProduccion.value);
+      cargarEmpleadosDisponibles(); // Cargar empleados para el select
+      cargarOperacionesDisponibles(); // Cargar operaciones para el select
+      cargarProducciones(); // Cargar producciones
+
+      // Establecer fechas por defecto en los campos de descarga (hoy y hace 30 días)
+      const hoy = new Date();
+      const hace30Dias = new Date(hoy);
+      hace30Dias.setDate(hoy.getDate() - 30);
+      fechaInicioDescarga.value = hace30Dias.toISOString().split('T')[0];
+      fechaFinDescarga.value = hoy.toISOString().split('T')[0];
+    });
+  </script>
+</Layout>

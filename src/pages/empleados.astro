@@ -1,0 +1,410 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout>
+  <h1 class="text-4xl font-bold mb-8 text-gray-900 text-center">Registro de Empleados</h1>
+
+  <!-- Formulario de registro -->
+  <div class="bg-white p-8 rounded-3xl shadow-2xl max-w-lg mx-auto">
+    <h2 class="text-2xl font-semibold mb-6 text-gray-800 text-center">Agregar Nuevo Empleado</h2>
+    <form id="formEmpleado" class="space-y-4">
+      <div>
+        <label for="documento" class="block text-sm font-medium text-gray-700">Documento de Identidad</label>
+        <input type="text" id="documento" name="documento" class="mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500" required />
+      </div>
+      <div>
+        <label for="nombre" class="block text-sm font-medium text-gray-700">Nombre</label>
+        <input type="text" id="nombre" name="nombre" class="mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500" required />
+      </div>
+      <div>
+        <label for="cargo" class="block text-sm font-medium text-gray-700">Cargo</label>
+        <select id="cargo" name="cargo" class="mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500" required>
+          <option value="">Seleccione un cargo</option>
+          <option value="Operario de Máquina Plana">Operario de Máquina Plana</option>
+          <option value="Operario de Máquina Fileteadora">Operario de Máquina Fileteadora</option>
+          <option value="Operario de Alistamiento">Operario de Alistamiento</option>
+          <option value="Operario de Máquina Collarín">Operario de Máquina Collarín</option>
+          <option value="Operario de Corte">Operario de Corte</option>
+        </select>
+      </div>
+      <div class="flex gap-4">
+        <button type="submit" id="btnRegistrar" class="flex-1 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition">Registrar Empleado</button>
+        <button type="button" id="btnCancelar" class="flex-1 bg-gray-500 text-white py-3 rounded-lg hover:bg-gray-600 transition hidden">Cancelar</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Lista de empleados con paginación -->
+  <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-3xl mx-auto mt-8">
+    <div class="flex justify-between items-center mb-6">
+      <h2 class="text-2xl font-semibold text-gray-800">Lista de Empleados</h2>
+      <div class="flex items-center gap-2">
+        <span class="text-sm text-gray-600" id="paginationInfo">Mostrando 0-0 de 0</span>
+        <select id="itemsPerPage" class="px-2 py-1 border border-gray-300 rounded text-sm">
+          <option value="5">5 por página</option>
+          <option value="10" selected>10 por página</option>
+          <option value="20">20 por página</option>
+        </select>
+      </div>
+    </div>
+    
+    <div id="listaEmpleados" class="space-y-4 min-h-64"></div>
+    
+    <!-- Controles de paginación -->
+    <div class="flex justify-between items-center mt-6">
+      <div class="text-sm text-gray-600" id="totalInfo">Total: 0 empleados</div>
+      <div class="flex items-center gap-2">
+        <button id="btnAnterior" class="px-3 py-1.5 border border-gray-300 rounded bg-white text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        <div id="paginationControls" class="flex items-center gap-1"></div>
+        <button id="btnSiguiente" class="px-3 py-1.5 border border-gray-300 rounded bg-white text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal mejorado -->
+  <div id="modalGeneral" class="fixed inset-0 flex items-center justify-center hidden bg-transparent bg-opacity-30 backdrop-blur-sm transition-all duration-300">
+    <div class="bg-white p-6 rounded-lg shadow-lg max-w-sm mx-4 transform transition-all duration-300">
+      <h3 class="text-lg font-semibold text-gray-800 mb-4" id="modalTitulo"></h3>
+      <p id="modalMensaje" class="mb-6 text-gray-600"></p>
+      <div class="flex justify-end gap-3">
+        <button id="btnCancelarModal" class="py-2 px-4 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition hidden">Cancelar</button>
+        <button id="btnConfirmarModal" class="bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition">Aceptar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Variables globales
+    let empleados = [];
+    let editandoIndex = -1;
+    let paginaActual = 1;
+    let itemsPorPagina = 10;
+    
+    const formEmpleado = document.getElementById('formEmpleado');
+    const listaEmpleados = document.getElementById('listaEmpleados');
+    const modalGeneral = document.getElementById('modalGeneral');
+    const modalTitulo = document.getElementById('modalTitulo');
+    const modalMensaje = document.getElementById('modalMensaje');
+    const btnConfirmarModal = document.getElementById('btnConfirmarModal');
+    const btnCancelarModal = document.getElementById('btnCancelarModal');
+    const btnRegistrar = document.getElementById('btnRegistrar');
+    const btnCancelar = document.getElementById('btnCancelar');
+    const btnAnterior = document.getElementById('btnAnterior');
+    const btnSiguiente = document.getElementById('btnSiguiente');
+    const paginationControls = document.getElementById('paginationControls');
+    const paginationInfo = document.getElementById('paginationInfo');
+    const totalInfo = document.getElementById('totalInfo');
+    const itemsPerPage = document.getElementById('itemsPerPage');
+    
+    // Funciones
+    function normalizarNombre(nombre) {
+      return nombre.trim().split(' ').map(palabra => 
+        palabra.charAt(0).toUpperCase() + palabra.slice(1).toLowerCase()
+      ).join(' ');
+    }
+
+    function mostrarModal(titulo, mensaje, confirmar = false, onConfirm = null) {
+      modalTitulo.textContent = titulo;
+      modalMensaje.textContent = mensaje;
+      
+      if (confirmar) {
+        btnCancelarModal.classList.remove('hidden');
+        btnConfirmarModal.textContent = 'Confirmar';
+        
+        // Configurar botón de confirmar
+        const antiguoConfirm = btnConfirmarModal.onclick;
+        btnConfirmarModal.onclick = () => {
+          if (onConfirm) onConfirm();
+          ocultarModal();
+          // Restaurar el manejador original
+          btnConfirmarModal.onclick = antiguoConfirm;
+        };
+      } else {
+        btnCancelarModal.classList.add('hidden');
+        btnConfirmarModal.textContent = 'Aceptar';
+        btnConfirmarModal.onclick = ocultarModal;
+      }
+      
+      modalGeneral.classList.remove('hidden');
+    }
+
+    function ocultarModal() {
+      modalGeneral.classList.add('hidden');
+    }
+
+    // Función para actualizar los controles de paginación
+    function actualizarPaginacion() {
+      const totalPaginas = Math.ceil(empleados.length / itemsPorPagina);
+      
+      // Actualizar información de paginación
+      const inicio = (paginaActual - 1) * itemsPorPagina + 1;
+      const fin = Math.min(paginaActual * itemsPorPagina, empleados.length);
+      paginationInfo.textContent = `Mostrando ${empleados.length > 0 ? inicio : 0}-${fin} de ${empleados.length}`;
+      totalInfo.textContent = `Total: ${empleados.length} empleado${empleados.length !== 1 ? 's' : ''}`;
+      
+      // Habilitar/deshabilitar botones de navegación
+      btnAnterior.disabled = paginaActual <= 1;
+      btnSiguiente.disabled = paginaActual >= totalPaginas;
+      
+      // Crear controles de página
+      paginationControls.innerHTML = '';
+      
+      // Limitar el número de botones de página para evitar sobrecarga
+      const maxPagesToShow = 5;
+      let startPage = Math.max(1, paginaActual - Math.floor(maxPagesToShow / 2));
+      let endPage = Math.min(totalPaginas, startPage + maxPagesToShow - 1);
+      
+      // Ajustar si estamos en los extremos
+      if (endPage - startPage + 1 < maxPagesToShow && startPage > 1) {
+        startPage = Math.max(1, endPage - maxPagesToShow + 1);
+      }
+      
+      // Mostrar botón de primera página si necesario
+      if (startPage > 1) {
+        const btnFirstPage = document.createElement('button');
+        btnFirstPage.className = 'px-3 py-1.5 border border-gray-300 rounded hover:bg-gray-100';
+        btnFirstPage.textContent = '1';
+        btnFirstPage.addEventListener('click', () => cambiarPagina(1));
+        paginationControls.appendChild(btnFirstPage);
+        
+        // Mostrar elipsis si hay salto
+        if (startPage > 2) {
+          const elipsis = document.createElement('span');
+          elipsis.className = 'px-1';
+          elipsis.textContent = '...';
+          paginationControls.appendChild(elipsis);
+        }
+      }
+      
+      // Crear botones de página
+      for (let i = startPage; i <= endPage; i++) {
+        const btnPage = document.createElement('button');
+        btnPage.className = `px-3 py-1.5 border rounded ${i === paginaActual ? 'bg-blue-600 text-white' : 'border-gray-300 hover:bg-gray-100'}`;
+        btnPage.textContent = i;
+        btnPage.addEventListener('click', () => cambiarPagina(i));
+        paginationControls.appendChild(btnPage);
+      }
+      
+      // Mostrar botón de última página si necesario
+      if (endPage < totalPaginas) {
+        // Mostrar elipsis si hay salto
+        if (endPage < totalPaginas - 1) {
+          const elipsis = document.createElement('span');
+          elipsis.className = 'px-1';
+          elipsis.textContent = '...';
+          paginationControls.appendChild(elipsis);
+        }
+        
+        const btnLastPage = document.createElement('button');
+        btnLastPage.className = 'px-3 py-1.5 border border-gray-300 rounded hover:bg-gray-100';
+        btnLastPage.textContent = totalPaginas;
+        btnLastPage.addEventListener('click', () => cambiarPagina(totalPaginas));
+        paginationControls.appendChild(btnLastPage);
+      }
+    }
+    
+    // Función para cambiar de página
+    function cambiarPagina(pagina) {
+      paginaActual = pagina;
+      cargarEmpleados();
+    }
+    
+    function cargarEmpleados() {
+      // Cargar empleados desde localStorage
+      empleados = JSON.parse(localStorage.getItem('empleados')) || [];
+      
+      // Actualizar la interfaz de paginación
+      actualizarPaginacion();
+      
+      if (empleados.length === 0) {
+        listaEmpleados.innerHTML = '<p class="text-center text-gray-500 py-4">No hay empleados registrados</p>';
+        return;
+      }
+      
+      listaEmpleados.innerHTML = '';
+      
+      // Calcular índices para la página actual
+      const inicio = (paginaActual - 1) * itemsPorPagina;
+      const fin = Math.min(inicio + itemsPorPagina, empleados.length);
+      const empleadosPagina = empleados.slice(inicio, fin);
+      
+      // Renderizar solo los empleados de la página actual
+      empleadosPagina.forEach((emp, i) => {
+        const index = inicio + i; // Índice real en el array completo
+        const empleadoItem = document.createElement('div');
+        empleadoItem.className = 'flex justify-between items-center p-4 border border-gray-200 rounded-lg hover:shadow-md transition';
+        empleadoItem.innerHTML = `
+          <div>
+            <p class="text-gray-800 font-medium">${emp.nombre} - ${emp.cargo}</p>
+            <p class="text-sm text-gray-600">Documento: ${emp.documento}</p>
+          </div>
+          <div class="flex space-x-2">
+            <button class="btn-editar flex items-center justify-center rounded-lg px-3 py-1.5 bg-blue-100 text-blue-700 hover:bg-blue-200 transition" data-index="${index}">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              Editar
+            </button>
+            <button class="btn-eliminar flex items-center justify-center rounded-lg px-3 py-1.5 bg-red-100 text-red-700 hover:bg-red-200 transition" data-index="${index}">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              Eliminar
+            </button>
+          </div>
+        `;
+        
+        // Agregar los event listeners a los botones
+        const btnEditar = empleadoItem.querySelector('.btn-editar');
+        btnEditar.addEventListener('click', () => editarEmpleado(index));
+        
+        const btnEliminar = empleadoItem.querySelector('.btn-eliminar');
+        btnEliminar.addEventListener('click', () => confirmarEliminarEmpleado(index));
+        
+        listaEmpleados.appendChild(empleadoItem);
+      });
+    }
+
+    function guardarEmpleado(empleado) {
+      if (editandoIndex >= 0) {
+        // Estamos editando un empleado existente
+        empleados[editandoIndex] = empleado;
+        editandoIndex = -1;
+        btnRegistrar.textContent = 'Registrar Empleado';
+        btnCancelar.classList.add('hidden');
+        mostrarModal('¡Actualizado!', 'El empleado ha sido actualizado exitosamente.');
+      } else {
+        // Estamos agregando un nuevo empleado
+        empleados.push(empleado);
+        
+        // Si agregamos un nuevo empleado, ir a la última página
+        const totalPaginas = Math.ceil(empleados.length / itemsPorPagina);
+        paginaActual = totalPaginas;
+        
+        mostrarModal('¡Registrado!', 'El empleado ha sido registrado exitosamente.');
+      }
+      
+      localStorage.setItem('empleados', JSON.stringify(empleados));
+      formEmpleado.reset();
+      cargarEmpleados();
+    }
+
+    function confirmarEliminarEmpleado(index) {
+      const empleado = empleados[index];
+      mostrarModal(
+        'Confirmar eliminación', 
+        `¿Estás seguro de que deseas eliminar a ${empleado.nombre}?`, 
+        true, 
+        () => {
+          eliminarEmpleado(index);
+        }
+      );
+    }
+
+    function eliminarEmpleado(index) {
+      empleados.splice(index, 1);
+      localStorage.setItem('empleados', JSON.stringify(empleados));
+      
+      // Ajustar la página actual si es necesario
+      const totalPaginas = Math.ceil(empleados.length / itemsPorPagina);
+      if (paginaActual > totalPaginas && totalPaginas > 0) {
+        paginaActual = totalPaginas;
+      }
+      
+      cargarEmpleados();
+      mostrarModal('¡Eliminado!', 'El empleado ha sido eliminado exitosamente.');
+    }
+
+    function editarEmpleado(index) {
+      const empleado = empleados[index];
+      document.getElementById('documento').value = empleado.documento;
+      document.getElementById('nombre').value = empleado.nombre;
+      document.getElementById('cargo').value = empleado.cargo;
+      
+      editandoIndex = index;
+      btnRegistrar.textContent = 'Actualizar Empleado';
+      btnCancelar.classList.remove('hidden');
+      
+      // Hacer scroll hacia el formulario
+      formEmpleado.scrollIntoView({ behavior: 'smooth' });
+    }
+    
+    function cancelarEdicion() {
+      formEmpleado.reset();
+      editandoIndex = -1;
+      btnRegistrar.textContent = 'Registrar Empleado';
+      btnCancelar.classList.add('hidden');
+    }
+
+    // Función para buscar empleados
+    function buscarEmpleados(query) {
+      if (!query || query.trim() === '') {
+        return JSON.parse(localStorage.getItem('empleados')) || [];
+      }
+      
+      query = query.toLowerCase().trim();
+      const todosEmpleados = JSON.parse(localStorage.getItem('empleados')) || [];
+      
+      return todosEmpleados.filter(emp => 
+        emp.nombre.toLowerCase().includes(query) || 
+        emp.documento.toLowerCase().includes(query) || 
+        emp.cargo.toLowerCase().includes(query)
+      );
+    }
+
+    // Event Listeners
+    formEmpleado.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const documento = document.getElementById('documento').value.trim();
+      const nombre = normalizarNombre(document.getElementById('nombre').value);
+      const cargo = document.getElementById('cargo').value;
+
+      if (documento && nombre && cargo) {
+        guardarEmpleado({ documento, nombre, cargo });
+      }
+    });
+    
+    btnCancelarModal.addEventListener('click', ocultarModal);
+    btnCancelar.addEventListener('click', cancelarEdicion);
+    
+    // Event listeners para la paginación
+    btnAnterior.addEventListener('click', () => {
+      if (paginaActual > 1) {
+        cambiarPagina(paginaActual - 1);
+      }
+    });
+    
+    btnSiguiente.addEventListener('click', () => {
+      const totalPaginas = Math.ceil(empleados.length / itemsPorPagina);
+      if (paginaActual < totalPaginas) {
+        cambiarPagina(paginaActual + 1);
+      }
+    });
+    
+    // Event listener para cambiar items por página
+    itemsPerPage.addEventListener('change', (e) => {
+      itemsPorPagina = parseInt(e.target.value);
+      // Ajustar la página actual para mantener aproximadamente los mismos ítems visibles
+      const itemInicio = (paginaActual - 1) * parseInt(e.target.oldValue || 10) + 1;
+      paginaActual = Math.ceil(itemInicio / itemsPorPagina);
+      // Asegurar página válida
+      paginaActual = Math.max(1, paginaActual);
+      cargarEmpleados();
+    });
+
+    // Inicializar la aplicación
+    document.addEventListener('DOMContentLoaded', () => {
+      itemsPorPagina = parseInt(itemsPerPage.value);
+      cargarEmpleados();
+    });
+  </script>
+</Layout>

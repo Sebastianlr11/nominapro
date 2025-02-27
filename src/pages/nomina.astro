@@ -1,0 +1,427 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout>
+  <h1 class="text-4xl font-bold mb-8 text-gray-900 text-center">Nómina</h1>
+
+  <!-- Filtro de fechas para nómina -->
+  <div class="bg-white p-8 rounded-3xl shadow-2xl max-w-lg mx-auto">
+    <h2 class="text-2xl font-semibold mb-6 text-gray-800 text-center">Generar Nómina</h2>
+    <div class="space-y-4">
+      <div class="flex items-center gap-2">
+        <label for="fechaInicioNomina" class="text-sm font-medium text-gray-700">Fecha Inicio:</label>
+        <input type="date" id="fechaInicioNomina" class="px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm" required />
+      </div>
+      <div class="flex items-center gap-2">
+        <label for="fechaFinNomina" class="text-sm font-medium text-gray-700">Fecha Fin:</label>
+        <input type="date" id="fechaFinNomina" class="px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm" required />
+      </div>
+      <button id="btnGenerarNomina" class="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition text-sm font-medium shadow-md hover:shadow-lg">
+        Generar Nómina
+      </button>
+    </div>
+  </div>
+
+  <!-- Lista de nómina con paginación -->
+  <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-3xl mx-auto mt-8">
+    <div class="flex justify-between items-center mb-6">
+      <h2 class="text-2xl font-semibold text-gray-800">Lista de Nómina</h2>
+      <div class="flex items-center gap-2">
+        <span class="text-sm text-gray-600" id="paginationInfoNomina">Mostrando 0-0 de 0</span>
+        <select id="itemsPerPageNomina" class="px-2 py-1 border border-gray-300 rounded text-sm">
+          <option value="5">5 por página</option>
+          <option value="10" selected>10 por página</option>
+          <option value="20">20 por página</option>
+        </select>
+      </div>
+    </div>
+    
+    <div id="listaNomina" class="space-y-4 min-h-64"></div>
+    
+    <!-- Total general -->
+    <div class="mt-6 text-right">
+      <p class="text-lg font-semibold text-gray-800">Total a Pagar: <span id="totalGeneralNomina">$0 COP</span></p>
+    </div>
+    
+    <!-- Botón para descargar PDF -->
+    <div class="mt-6 flex justify-end">
+      <button id="btnDescargarPDF" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium flex items-center gap-2 shadow-md hover:shadow-lg">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+        </svg>
+        Descargar Recibo (PDF)
+      </button>
+    </div>
+    
+    <!-- Controles de paginación -->
+    <div class="flex justify-between items-center mt-6">
+      <div class="text-sm text-gray-600" id="totalInfoNomina">Total: 0 empleados</div>
+      <div class="flex items-center gap-2">
+        <button id="btnAnteriorNomina" class="px-3 py-1.5 border border-gray-300 rounded bg-white text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        <div id="paginationControlsNomina" class="flex items-center gap-1"></div>
+        <button id="btnSiguienteNomina" class="px-3 py-1.5 border border-gray-300 rounded bg-white text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal mejorado -->
+  <div id="modalGeneralNomina" class="fixed inset-0 flex items-center justify-center hidden bg-transparent bg-opacity-30 backdrop-blur-sm transition-all duration-300 z-50">
+    <div class="bg-white p-6 rounded-lg shadow-lg max-w-sm mx-4 transform transition-all duration-300">
+      <h3 class="text-lg font-semibold text-gray-800 mb-4" id="modalTituloNomina"></h3>
+      <p id="modalMensajeNomina" class="mb-6 text-gray-600"></p>
+      <div class="flex justify-end gap-3">
+        <button id="btnCancelarModalNomina" class="py-2 px-4 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition hidden">Cancelar</button>
+        <button id="btnConfirmarModalNomina" class="bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition">Aceptar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Importar las bibliotecas necesarias -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+
+  <script>
+    // Variables globales
+    let empleados = [];
+    let producciones = [];
+    let operaciones = [];
+    let nomina = [];
+    let paginaActual = 1;
+    let itemsPorPagina = 10;
+    
+    const fechaInicioNomina = document.getElementById('fechaInicioNomina');
+    const fechaFinNomina = document.getElementById('fechaFinNomina');
+    const listaNomina = document.getElementById('listaNomina');
+    const modalGeneralNomina = document.getElementById('modalGeneralNomina');
+    const modalTituloNomina = document.getElementById('modalTituloNomina');
+    const modalMensajeNomina = document.getElementById('modalMensajeNomina');
+    const btnConfirmarModalNomina = document.getElementById('btnConfirmarModalNomina');
+    const btnCancelarModalNomina = document.getElementById('btnCancelarModalNomina');
+    const btnGenerarNomina = document.getElementById('btnGenerarNomina');
+    const btnDescargarPDF = document.getElementById('btnDescargarPDF');
+    const btnAnteriorNomina = document.getElementById('btnAnteriorNomina');
+    const btnSiguienteNomina = document.getElementById('btnSiguienteNomina');
+    const paginationControlsNomina = document.getElementById('paginationControlsNomina');
+    const paginationInfoNomina = document.getElementById('paginationInfoNomina');
+    const totalInfoNomina = document.getElementById('totalInfoNomina');
+    const totalGeneralNomina = document.getElementById('totalGeneralNomina');
+    const itemsPerPageNomina = document.getElementById('itemsPerPageNomina');
+    
+    // Cargar datos desde localStorage
+    function cargarDatos() {
+      empleados = JSON.parse(localStorage.getItem('empleados')) || [];
+      producciones = JSON.parse(localStorage.getItem('producciones')) || [];
+      operaciones = JSON.parse(localStorage.getItem('operaciones')) || [];
+    }
+
+    function mostrarModalNomina(titulo, mensaje, confirmar = false, onConfirm = null) {
+      modalTituloNomina.textContent = titulo;
+      modalMensajeNomina.textContent = mensaje;
+      
+      if (confirmar) {
+        btnCancelarModalNomina.classList.remove('hidden');
+        btnConfirmarModalNomina.textContent = 'Confirmar';
+        
+        const antiguoConfirm = btnConfirmarModalNomina.onclick;
+        btnConfirmarModalNomina.onclick = () => {
+          if (onConfirm) onConfirm();
+          ocultarModalNomina();
+          btnConfirmarModalNomina.onclick = antiguoConfirm;
+        };
+      } else {
+        btnCancelarModalNomina.classList.add('hidden');
+        btnConfirmarModalNomina.textContent = 'Aceptar';
+        btnConfirmarModalNomina.onclick = ocultarModalNomina;
+      }
+      
+      modalGeneralNomina.classList.remove('hidden');
+    }
+
+    function ocultarModalNomina() {
+      modalGeneralNomina.classList.add('hidden');
+    }
+
+    // Función para actualizar los controles de paginación
+    function actualizarPaginacionNomina() {
+      const totalPaginas = Math.ceil(nomina.length / itemsPorPagina);
+      
+      const inicio = (paginaActual - 1) * itemsPorPagina + 1;
+      const fin = Math.min(paginaActual * itemsPorPagina, nomina.length);
+      paginationInfoNomina.textContent = `Mostrando ${nomina.length > 0 ? inicio : 0}-${fin} de ${nomina.length}`;
+      totalInfoNomina.textContent = `Total: ${nomina.length} empleado${nomina.length !== 1 ? 's' : ''}`;
+      
+      btnAnteriorNomina.disabled = paginaActual <= 1;
+      btnSiguienteNomina.disabled = paginaActual >= totalPaginas;
+      
+      paginationControlsNomina.innerHTML = '';
+      
+      const maxPagesToShow = 5;
+      let startPage = Math.max(1, paginaActual - Math.floor(maxPagesToShow / 2));
+      let endPage = Math.min(totalPaginas, startPage + maxPagesToShow - 1);
+      
+      if (endPage - startPage + 1 < maxPagesToShow && startPage > 1) {
+        startPage = Math.max(1, endPage - maxPagesToShow + 1);
+      }
+      
+      if (startPage > 1) {
+        const btnFirstPage = document.createElement('button');
+        btnFirstPage.className = 'px-3 py-1.5 border border-gray-300 rounded hover:bg-gray-100';
+        btnFirstPage.textContent = '1';
+        btnFirstPage.addEventListener('click', () => cambiarPaginaNomina(1));
+        paginationControlsNomina.appendChild(btnFirstPage);
+        
+        if (startPage > 2) {
+          const elipsis = document.createElement('span');
+          elipsis.className = 'px-1';
+          elipsis.textContent = '...';
+          paginationControlsNomina.appendChild(elipsis);
+        }
+      }
+      
+      for (let i = startPage; i <= endPage; i++) {
+        const btnPage = document.createElement('button');
+        btnPage.className = `px-3 py-1.5 border rounded ${i === paginaActual ? 'bg-blue-600 text-white' : 'border-gray-300 hover:bg-gray-100'}`;
+        btnPage.textContent = i;
+        btnPage.addEventListener('click', () => cambiarPaginaNomina(i));
+        paginationControlsNomina.appendChild(btnPage);
+      }
+      
+      if (endPage < totalPaginas) {
+        if (endPage < totalPaginas - 1) {
+          const elipsis = document.createElement('span');
+          elipsis.className = 'px-1';
+          elipsis.textContent = '...';
+          paginationControlsNomina.appendChild(elipsis);
+        }
+        
+        const btnLastPage = document.createElement('button');
+        btnLastPage.className = 'px-3 py-1.5 border border-gray-300 rounded hover:bg-gray-100';
+        btnLastPage.textContent = totalPaginas;
+        btnLastPage.addEventListener('click', () => cambiarPaginaNomina(totalPaginas));
+        paginationControlsNomina.appendChild(btnLastPage);
+      }
+    }
+    
+    function cambiarPaginaNomina(pagina) {
+      paginaActual = pagina;
+      generarNomina();
+    }
+
+    function generarNomina() {
+      const fechaInicio = fechaInicioNomina.value;
+      const fechaFin = fechaFinNomina.value;
+
+      if (!fechaInicio || !fechaFin) {
+        mostrarModalNomina('Error', 'Por favor, selecciona un rango de fechas.');
+        return;
+      }
+
+      cargarDatos();
+
+      // Filtrar producciones por rango de fechas
+      const produccionesFiltradas = producciones.filter(prod => {
+        const fechaProduccion = new Date(prod.fecha).toISOString().split('T')[0];
+        return fechaProduccion >= fechaInicio && fechaProduccion <= fechaFin;
+      });
+
+      if (produccionesFiltradas.length === 0) {
+        listaNomina.innerHTML = '<p class="text-center text-gray-500 py-4">No hay producciones en el rango de fechas seleccionado.</p>';
+        totalGeneralNomina.textContent = '$0 COP';
+        nomina = [];
+        actualizarPaginacionNomina();
+        return;
+      }
+
+      // Calcular el pago por empleado
+      const pagosPorEmpleado = {};
+      produccionesFiltradas.forEach(prod => {
+        const operacion = operaciones.find(op => op.nombreOperacion === prod.operacion);
+        if (operacion) {
+          const totalGanado = prod.cantidad * operacion.valorOperacion;
+          if (!pagosPorEmpleado[prod.empleado]) {
+            pagosPorEmpleado[prod.empleado] = 0;
+          }
+          pagosPorEmpleado[prod.empleado] += totalGanado;
+        }
+      });
+
+      // Crear lista de nómina
+      nomina = Object.entries(pagosPorEmpleado).map(([empleadoNombre, total]) => ({
+        empleado: empleadoNombre,
+        total: total || 0 // Asegurar que siempre haya un valor
+      }));
+
+      // Ordenar por nombre de empleado
+      nomina.sort((a, b) => a.empleado.localeCompare(b.empleado));
+
+      // Actualizar la lista
+      actualizarPaginacionNomina();
+      if (nomina.length === 0) {
+        listaNomina.innerHTML = '<p class="text-center text-gray-500 py-4">No hay empleados con producciones en el rango de fechas seleccionado.</p>';
+        totalGeneralNomina.textContent = '$0 COP';
+        return;
+      }
+
+      listaNomina.innerHTML = '';
+      const inicio = (paginaActual - 1) * itemsPorPagina;
+      const fin = Math.min(inicio + itemsPorPagina, nomina.length);
+      const nominaPagina = nomina.slice(inicio, fin);
+
+      nominaPagina.forEach((item, i) => {
+        const empleado = empleados.find(emp => emp.nombre === item.empleado) || { nombre: item.empleado, cargo: 'No especificado', documento: 'No disponible' };
+        const nominaItem = document.createElement('div');
+        nominaItem.className = 'flex justify-between items-center p-4 border border-gray-200 rounded-lg hover:shadow-md transition';
+        nominaItem.innerHTML = `
+          <div>
+            <p class="text-gray-800 font-medium">${empleado.nombre} - ${empleado.cargo}</p>
+            <p class="text-sm text-gray-600">Documento: ${empleado.documento || 'No disponible'}</p>
+          </div>
+          <div class="text-gray-800 font-medium">
+            $${new Intl.NumberFormat('es-CO').format(item.total)} COP
+          </div>
+        `;
+        listaNomina.appendChild(nominaItem);
+      });
+
+      // Calcular y mostrar total general
+      const totalGeneral = nomina.reduce((sum, item) => sum + (item.total || 0), 0);
+      totalGeneralNomina.textContent = `$${new Intl.NumberFormat('es-CO').format(totalGeneral)} COP`;
+    }
+
+    // Función para generar y descargar un PDF con el recibo de nómina
+    function descargarPDF() {
+      const fechaInicio = fechaInicioNomina.value;
+      const fechaFin = fechaFinNomina.value;
+
+      if (!fechaInicio || !fechaFin) {
+        mostrarModalNomina('Error', 'Por favor, selecciona un rango de fechas.');
+        return;
+      }
+
+      if (nomina.length === 0) {
+        mostrarModalNomina('Advertencia', 'No hay datos de nómina para generar el PDF. Por favor, genera la nómina primero.');
+        return;
+      }
+
+      try {
+        // Usar jsPDF (asegurando que esté disponible)
+        if (typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined') {
+          mostrarModalNomina('Error', 'No se pudo cargar la biblioteca jsPDF. Por favor, recarga la página e intenta nuevamente.');
+          console.error('Error: jsPDF no está disponible');
+          return;
+        }
+
+        // Crear el documento PDF
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+
+        // Título del PDF
+        doc.setFontSize(16);
+        doc.text('Recibo de Nómina', 105, 20, { align: 'center' });
+        
+        // Información del período
+        doc.setFontSize(12);
+        doc.text(`Período: ${new Date(fechaInicio).toLocaleDateString('es-CO')} - ${new Date(fechaFin).toLocaleDateString('es-CO')}`, 105, 30, { align: 'center' });
+
+        // Tabla de nómina
+        const tableData = [
+          ['Empleado', 'Cargo', 'Documento', 'Total a Pagar (COP)'],
+          ...nomina.map(item => {
+            const empleado = empleados.find(emp => emp.nombre === item.empleado) || { nombre: item.empleado, cargo: 'No especificado', documento: 'No disponible' };
+            return [
+              empleado.nombre,
+              empleado.cargo,
+              empleado.documento || 'No disponible',
+              new Intl.NumberFormat('es-CO').format(item.total)
+            ];
+          })
+        ];
+
+        doc.autoTable({
+          startY: 40,
+          head: [tableData[0]],
+          body: tableData.slice(1),
+          theme: 'grid',
+          styles: { fontSize: 10, cellPadding: 2 },
+          headStyles: { fillColor: [41, 128, 185], textColor: [255, 255, 255], fontStyle: 'bold' },
+          columnStyles: {
+            0: { cellWidth: 60 },
+            1: { cellWidth: 50 },
+            2: { cellWidth: 40 },
+            3: { cellWidth: 40 }
+          }
+        });
+
+        // Total general
+        const totalGeneral = nomina.reduce((sum, item) => sum + (item.total || 0), 0);
+        const finalY = doc.lastAutoTable ? doc.lastAutoTable.finalY : 40;
+        doc.text(`Total General: $${new Intl.NumberFormat('es-CO').format(totalGeneral)} COP`, 105, finalY + 10, { align: 'center' });
+
+        // Fecha de emisión
+        doc.text(`Emitido el: ${new Date().toLocaleDateString('es-CO')}`, 105, finalY + 20, { align: 'center' });
+
+        // Descargar el PDF
+        doc.save(`Nomina_${fechaInicio}_${fechaFin}.pdf`);
+        
+        mostrarModalNomina('Éxito', 'El PDF ha sido generado y descargado correctamente.');
+      } catch (error) {
+        console.error('Error al generar PDF:', error);
+        mostrarModalNomina('Error', `No se pudo generar el PDF: ${error.message}`);
+      }
+    }
+
+    // Event Listeners
+    btnGenerarNomina.addEventListener('click', generarNomina);
+    btnDescargarPDF.addEventListener('click', descargarPDF);
+    btnCancelarModalNomina.addEventListener('click', ocultarModalNomina);
+    
+    btnAnteriorNomina.addEventListener('click', () => {
+      if (paginaActual > 1) {
+        cambiarPaginaNomina(paginaActual - 1);
+      }
+    });
+    
+    btnSiguienteNomina.addEventListener('click', () => {
+      const totalPaginas = Math.ceil(nomina.length / itemsPorPagina);
+      if (paginaActual < totalPaginas) {
+        cambiarPaginaNomina(paginaActual + 1);
+      }
+    });
+    
+    itemsPerPageNomina.addEventListener('change', (e) => {
+      const oldValue = e.target.oldValue || 10;
+      itemsPorPagina = parseInt(e.target.value);
+      const itemInicio = (paginaActual - 1) * parseInt(oldValue) + 1;
+      paginaActual = Math.ceil(itemInicio / itemsPorPagina);
+      paginaActual = Math.max(1, paginaActual);
+      e.target.oldValue = e.target.value;
+      generarNomina();
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+      itemsPorPagina = parseInt(itemsPerPageNomina.value);
+      itemsPerPageNomina.oldValue = itemsPerPageNomina.value;
+      
+      // Establecer fechas predeterminadas
+      const hoy = new Date();
+      const hace15Dias = new Date(hoy);
+      hace15Dias.setDate(hoy.getDate() - 15);
+      fechaInicioNomina.value = hace15Dias.toISOString().split('T')[0];
+      fechaFinNomina.value = hoy.toISOString().split('T')[0];
+      
+      // Verificar que las bibliotecas están cargadas
+      if (typeof window.jspdf === 'undefined') {
+        console.warn("Advertencia: jsPDF no está cargado correctamente. El botón de descarga de PDF podría no funcionar.");
+      }
+    });
+  </script>
+</Layout>
