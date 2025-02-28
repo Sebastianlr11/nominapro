@@ -218,10 +218,8 @@ import Layout from '../layouts/Layout.astro';
     function cargarOperaciones() {
       operaciones = JSON.parse(localStorage.getItem('operaciones')) || [];
       
-      // Ordenar alfabéticamente por nombreOperacion
       operaciones.sort((a, b) => a.nombreOperacion.localeCompare(b.nombreOperacion));
       
-      // Aplicar filtro si existe
       const filtro = filtroOperacion.value.trim().toLowerCase();
       operacionesFiltradas = filtro
         ? operaciones.filter(op => op.nombreOperacion.toLowerCase().includes(filtro))
@@ -241,12 +239,12 @@ import Layout from '../layouts/Layout.astro';
       const operacionesPagina = operacionesFiltradas.slice(inicio, fin);
       
       operacionesPagina.forEach((op, i) => {
-        const index = operaciones.findIndex(o => o.nombreOperacion === op.nombreOperacion && o.valorOperacion === op.valorOperacion); // Índice en el array original
+        const index = operaciones.findIndex(o => o.nombreOperacion === op.nombreOperacion && o.valorOperacion === op.valorOperacion);
         const operacionItem = document.createElement('div');
         operacionItem.className = 'flex justify-between items-center p-4 border border-gray-200 rounded-lg hover:shadow-md transition';
         operacionItem.innerHTML = `
           <div>
-            <p class="text-gray-800 font-medium">${op.nombreOperacion} - $${new Intl.NumberFormat('es-CO').format(op.valorOperacion)} COP</p>
+            <p class="text-gray-800 font-medium">${op.nombreOperacion} - $${new Intl.NumberFormat('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(op.valorOperacion)} COP</p>
           </div>
           <div class="flex space-x-2">
             <button class="btn-editar-operacion flex items-center justify-center rounded-lg px-3 py-1.5 bg-blue-100 text-blue-700 hover:bg-blue-200 transition" data-index="${index}">
@@ -360,7 +358,6 @@ import Layout from '../layouts/Layout.astro';
       ];
 
       const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
-      // Aplicar formato numérico a la columna de valor
       const range = XLSX.utils.decode_range(worksheet['!ref']);
       for (let R = 1; R <= range.e.r; R++) {
         const cellAddress = { c: 1, r: R };
@@ -381,10 +378,10 @@ import Layout from '../layouts/Layout.astro';
       const nombreOperacion = document.getElementById('nombreOperacion').value;
       const valorOperacion = parseFloat(document.getElementById('valorOperacion').value);
 
-      if (nombreOperacion && !isNaN(valorOperacion) && valorOperacion >= 0) {
+      if (nombreOperacion && !isNaN(valorOperacion)) { // Permitir valores negativos
         guardarOperacion({ nombreOperacion, valorOperacion });
       } else {
-        mostrarModalOperacion('Error', 'Por favor, ingresa un nombre válido y un valor numérico positivo.');
+        mostrarModalOperacion('Error', 'Por favor, ingresa un nombre válido y un valor numérico.');
       }
     });
     
@@ -415,9 +412,8 @@ import Layout from '../layouts/Layout.astro';
 
     btnExportarExcel.addEventListener('click', exportarExcel);
 
-    // Evento para el filtro de búsqueda
     filtroOperacion.addEventListener('input', () => {
-      paginaActual = 1; // Reiniciar a la primera página al filtrar
+      paginaActual = 1;
       cargarOperaciones();
     });
 
